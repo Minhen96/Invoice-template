@@ -77,6 +77,8 @@ test('sign up → invoice → PDF → paid → next month', async ({ page }) => 
     path: 'test-results/invoice.pdf',
   })
   expect(pdf.byteLength).toBeGreaterThan(10_000)
+  // A normal one-item invoice must fit on a single A4 page.
+  expect(pdf.toString('latin1').match(/\/Type\s*\/Page(?!s)/g)).toHaveLength(1)
   await page.emulateMedia({ media: 'screen' })
 
   // Survives a reload (saved on the server, not just in the page).
