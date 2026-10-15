@@ -1,0 +1,7 @@
+dist
+coverage
+playwright-report
+test-results
+package-lock.json
+src/routeTree.gen.ts
+convex/_generated

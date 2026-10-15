@@ -1,0 +1,628 @@
+/*
+ * Printed invoice designs. Sizes are in px on a 794 × 1123 px page (A4 at 96 dpi), so the
+ * on-screen preview and the PDF are identical. Colours here are part of the paper design, not
+ * the app theme, so they don't use the app tokens.
+ */
+
+.doc-page {
+  --ink: #141414;
+  --soft: #4a4a4a;
+  --rule: #262626;
+  --hair: #dcdcdc;
+  position: relative;
+  box-sizing: border-box;
+  width: 794px;
+  min-height: 1123px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: var(--ink);
+  font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.doc-page * {
+  box-sizing: border-box;
+}
+
+.doc-page h1,
+.doc-page dl,
+.doc-page dd {
+  margin: 0;
+}
+
+.doc-pre {
+  white-space: pre-line;
+}
+
+.doc-label {
+  font-weight: 700;
+}
+
+.doc-logo {
+  display: block;
+  max-width: 180px;
+  max-height: 64px;
+  object-fit: contain;
+}
+
+/* Items table (shared) */
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.doc-table th {
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+}
+.doc-table th.doc-col-desc,
+.doc-table td.doc-col-desc {
+  text-align: left;
+  width: 46%;
+}
+.doc-table td {
+  vertical-align: top;
+}
+.doc-table .doc-col-num {
+  text-align: center;
+  width: 18%;
+}
+
+/* Totals (shared) */
+.doc-totals {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+}
+.doc-totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+.doc-totals dt {
+  font-weight: 600;
+}
+
+.doc-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.doc-notes {
+  font-size: 12.5px;
+}
+
+.doc-from-name {
+  font-weight: 700;
+}
+
+/* PAID stamp */
+.doc-stamp {
+  position: absolute;
+  top: 300px;
+  right: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 18px 8px;
+  border: 3px solid #0f7a4f;
+  border-radius: 10px;
+  color: #0f7a4f;
+  transform: rotate(-12deg);
+  opacity: 0.85;
+  pointer-events: none;
+}
+.doc-stamp span {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  line-height: 1.1;
+}
+.doc-stamp small {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ───────────── Blush ───────────── */
+.tpl-blush {
+  background: color-mix(in srgb, var(--accent) 6%, #fffafd);
+  padding: 96px 80px 72px;
+  font-size: 14.5px;
+}
+.tpl-blush .b-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.tpl-blush .b-title {
+  margin-left: auto;
+  font-family: 'Bodoni Moda Variable', 'Bodoni Moda', Didot, serif;
+  font-weight: 400;
+  font-size: 64px;
+  line-height: 1;
+  letter-spacing: -0.5px;
+  font-variation-settings: 'opsz' 96;
+}
+.tpl-blush .b-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  margin-top: 40px;
+  margin-bottom: 28px;
+  padding-left: 8px;
+}
+.tpl-blush .doc-billto .doc-label {
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+.tpl-blush .doc-billto-name,
+.tpl-blush .doc-billto .doc-pre {
+  font-size: 15px;
+  line-height: 1.65;
+}
+.tpl-blush .doc-attn {
+  margin-top: 18px;
+  font-size: 13px;
+}
+.tpl-blush .b-number {
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.tpl-blush .b-due {
+  color: var(--soft);
+  font-size: 13px;
+}
+.tpl-blush .doc-table {
+  border-top: 1px solid var(--rule);
+}
+.tpl-blush .doc-table th {
+  padding: 22px 12px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  border-bottom: 1px solid var(--rule);
+}
+.tpl-blush .doc-table td {
+  padding: 32px 12px 18px;
+  height: 56px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.tpl-blush .doc-table .doc-blank td {
+  padding: 0;
+}
+.tpl-blush .doc-totals {
+  width: 240px;
+  margin-top: 22px;
+  margin-right: 0;
+}
+.tpl-blush .doc-totals-row {
+  padding: 8px 6px;
+  font-size: 14px;
+}
+.tpl-blush .doc-totals-row:not(.doc-total) dt {
+  font-weight: 700;
+}
+.tpl-blush .doc-totals-row:nth-last-child(2) {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 14px;
+}
+.tpl-blush .doc-total {
+  padding-top: 14px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.tpl-blush .doc-total dt {
+  font-weight: 700;
+}
+.tpl-blush .doc-currency {
+  font-size: 14px;
+  font-weight: 600;
+}
+.tpl-blush .doc-notes {
+  margin-top: 28px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.tpl-blush .b-foot {
+  padding-top: 48px;
+  align-items: flex-end;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.tpl-blush .doc-payment .doc-label {
+  font-size: 15px;
+}
+.tpl-blush .doc-from {
+  text-align: right;
+}
+.tpl-blush .doc-from-name {
+  font-family: 'Poppins', 'Inter Variable', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+}
+
+/* ───────────── Classic ───────────── */
+.tpl-classic {
+  padding: 64px 64px 56px;
+}
+.tpl-classic .c-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 28px;
+  border-bottom: 2px solid var(--accent);
+}
+.tpl-classic .c-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 340px;
+  font-size: 12.5px;
+  color: var(--soft);
+}
+.tpl-classic .doc-from-name {
+  color: var(--ink);
+  font-size: 17px;
+}
+.tpl-classic .c-titlebox {
+  text-align: right;
+}
+.tpl-classic .c-title {
+  font-family: 'Playfair Display Variable', 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.tpl-classic .c-meta {
+  margin-top: 16px;
+  display: grid;
+  gap: 2px;
+  font-size: 12.5px;
+}
+.tpl-classic .c-meta div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}
+.tpl-classic .c-meta dt {
+  color: var(--soft);
+}
+.tpl-classic .c-meta dd {
+  min-width: 96px;
+  font-weight: 600;
+}
+.tpl-classic .doc-billto {
+  margin: 28px 0 24px;
+}
+.tpl-classic .doc-billto .doc-label {
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.tpl-classic .doc-billto-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.tpl-classic .doc-attn {
+  margin-top: 6px;
+  color: var(--soft);
+  font-size: 12.5px;
+}
+.tpl-classic .doc-table th {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent) 9%, #fff);
+  border-bottom: 1.5px solid var(--accent);
+  font-size: 12px;
+}
+.tpl-classic .doc-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--hair);
+}
+.tpl-classic .doc-totals {
+  width: 280px;
+  margin-top: 16px;
+}
+.tpl-classic .doc-totals-row {
+  padding: 6px 12px;
+}
+.tpl-classic .doc-totals dt {
+  color: var(--soft);
+  font-weight: 500;
+}
+.tpl-classic .doc-total {
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.tpl-classic .doc-total dt {
+  color: inherit;
+  font-weight: 700;
+}
+.tpl-classic .doc-notes {
+  margin-top: 32px;
+  color: var(--soft);
+}
+.tpl-classic .c-foot {
+  padding-top: 40px;
+}
+.tpl-classic .doc-payment {
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 6%, #fff);
+  font-size: 12.5px;
+}
+.tpl-classic .doc-payment .doc-label {
+  margin-bottom: 4px;
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+/* ───────────── Minimal ───────────── */
+.tpl-minimal {
+  padding: 72px 72px 64px;
+  border-top: 6px solid var(--accent);
+  font-size: 13px;
+}
+.tpl-minimal .doc-label {
+  margin-bottom: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+.tpl-minimal .m-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 32px;
+}
+.tpl-minimal .m-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.tpl-minimal .m-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+.tpl-minimal .m-number {
+  font-size: 15px;
+  color: var(--soft);
+}
+.tpl-minimal .m-meta {
+  display: grid;
+  grid-template-columns: 1.3fr 0.8fr 1.2fr;
+  gap: 32px;
+  padding: 28px 0 36px;
+  border-top: 1px solid var(--hair);
+}
+.tpl-minimal .m-gap {
+  margin-top: 14px;
+}
+.tpl-minimal .doc-billto-name,
+.tpl-minimal .doc-from-name {
+  font-weight: 600;
+}
+.tpl-minimal .doc-attn {
+  margin-top: 6px;
+  color: var(--soft);
+}
+.tpl-minimal .doc-from {
+  color: var(--soft);
+}
+.tpl-minimal .doc-from-name {
+  color: var(--ink);
+}
+.tpl-minimal .doc-table th {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ink);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+.tpl-minimal .doc-table td {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.tpl-minimal .doc-table .doc-col-num:last-child {
+  text-align: right;
+}
+.tpl-minimal .doc-totals {
+  width: 260px;
+  margin-top: 20px;
+}
+.tpl-minimal .doc-totals-row {
+  padding: 4px 0;
+}
+.tpl-minimal .doc-totals dt {
+  font-weight: 500;
+  color: var(--soft);
+}
+.tpl-minimal .doc-total {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ink);
+  align-items: baseline;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.tpl-minimal .doc-total dt {
+  font-size: 13px;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+.tpl-minimal .doc-total dd {
+  color: var(--accent);
+}
+.tpl-minimal .doc-currency {
+  font-size: 14px;
+}
+.tpl-minimal .doc-notes {
+  margin-top: 40px;
+  color: var(--soft);
+}
+.tpl-minimal .m-foot {
+  padding-top: 40px;
+}
+.tpl-minimal .doc-payment {
+  color: var(--soft);
+}
+
+/* ───────────── Bold ───────────── */
+.tpl-bold {
+  font-size: 13.5px;
+}
+.tpl-bold .o-band {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 64px 64px 40px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tpl-bold .o-band .doc-logo {
+  margin-bottom: 20px;
+}
+.tpl-bold .o-title {
+  font-family: 'Poppins', 'Inter Variable', sans-serif;
+  font-weight: 700;
+  font-size: 54px;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.tpl-bold .o-meta {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+  font-size: 12.5px;
+}
+.tpl-bold .o-meta div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+}
+.tpl-bold .o-meta dt {
+  opacity: 0.8;
+}
+.tpl-bold .o-meta dd {
+  min-width: 92px;
+  font-weight: 600;
+}
+.tpl-bold .o-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 40px 64px 56px;
+}
+.tpl-bold .doc-label {
+  margin-bottom: 6px;
+  font-family: 'Poppins', 'Inter Variable', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.tpl-bold .o-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 32px;
+}
+.tpl-bold .doc-billto-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.tpl-bold .doc-attn {
+  margin-top: 6px;
+  color: var(--soft);
+}
+.tpl-bold .doc-from {
+  color: var(--soft);
+}
+.tpl-bold .doc-from-name {
+  color: var(--ink);
+}
+.tpl-bold .doc-table th {
+  padding: 12px;
+  border-bottom: 2px solid var(--ink);
+  font-family: 'Poppins', 'Inter Variable', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tpl-bold .doc-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--hair);
+}
+.tpl-bold .doc-totals {
+  width: 300px;
+  margin-top: 18px;
+}
+.tpl-bold .doc-totals-row {
+  padding: 6px 12px;
+}
+.tpl-bold .doc-totals dt {
+  font-weight: 500;
+  color: var(--soft);
+}
+.tpl-bold .doc-total {
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-family: 'Poppins', 'Inter Variable', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+}
+.tpl-bold .doc-total dt {
+  color: inherit;
+  font-weight: 600;
+}
+.tpl-bold .doc-notes {
+  margin-top: 32px;
+  color: var(--soft);
+}
+.tpl-bold .o-foot {
+  padding-top: 40px;
+}
+
+@media print {
+  .doc-page {
+    width: 210mm;
+    min-height: 297mm;
+  }
+}

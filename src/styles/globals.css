@@ -1,0 +1,103 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Map the design tokens into Tailwind utilities: bg-surface, text-muted, border-line, … */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-onink: var(--onink);
+  --color-focus: var(--focus);
+  --color-paid: var(--paid);
+  --color-paid-bg: var(--paid-bg);
+  --color-unpaid: var(--unpaid);
+  --color-unpaid-bg: var(--unpaid-bg);
+  --color-overdue: var(--overdue);
+  --color-overdue-bg: var(--overdue-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+
+  --radius-card: var(--radius);
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Visible keyboard focus everywhere (WCAG 2.4.7). */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* iOS Safari zooms the page when a field under 16px gets focus. On touch screens, typing
+ * fields are 16px. Unlayered on purpose so it wins over text-size utilities. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/*
+ * Printing / Save as PDF: only the invoice in #print-root is printed, at true A4 size.
+ * Everything else on the page is hidden.
+ */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+#print-root {
+  display: none;
+}
+
+@media print {
+  body > *:not(#print-root) {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  #print-root {
+    display: block;
+  }
+}

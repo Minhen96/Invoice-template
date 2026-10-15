@@ -1,0 +1,33 @@
+/*
+ * Design tokens. Components use these only (through Tailwind theme colours), never raw hex.
+ * Calm, paper-like neutrals; colour is reserved for meaning (paid / unpaid / overdue).
+ * Every text colour meets WCAG AA 4.5:1 on --bg, --surface and its own tinted background.
+ */
+:root {
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --raised: #fafaf8;
+  --sunken: #efefeb;
+  --text: #18181b;
+  --muted: #5c5c66;
+  --line: #e4e4df;
+  --line-strong: #cfcfc8;
+  --ink: #18181b;
+  --onink: #ffffff;
+  --focus: #2457d6;
+
+  --paid: #0f6e4f;
+  --paid-bg: #e4f4ec;
+  --unpaid: #7c5200;
+  --unpaid-bg: #fbf0d6;
+  --overdue: #b42318;
+  --overdue-bg: #fdeceb;
+  --danger: #b42318;
+  --danger-bg: #fdeceb;
+
+  --radius: 12px;
+  --shadow-card: 0 1px 2px rgb(24 24 27 / 0.04), 0 1px 1px rgb(24 24 27 / 0.03);
+  --shadow-pop: 0 12px 32px rgb(24 24 27 / 0.12), 0 2px 6px rgb(24 24 27 / 0.06);
+
+  color-scheme: light;
+}
