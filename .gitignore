@@ -13,3 +13,6 @@ test-results
 !.vscode/extensions.json
 .DS_Store
 *.log
+
+# Local dev tools (Mailpit binary)
+.tools

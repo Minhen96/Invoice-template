@@ -113,15 +113,53 @@ describe('sign-in codes', () => {
     await expect(send()).rejects.toThrow('Resend rejected the email (HTTP 403)')
   })
 
-  it('need a Resend key unless the dev outbox is on', async () => {
+  it('need a Resend key unless a dev inbox is on', async () => {
     vi.stubEnv('AUTH_RESEND_KEY', '')
     vi.stubEnv('AUTH_DEV_OUTBOX', '')
+    vi.stubEnv('AUTH_MAILPIT_URL', '')
     await expect(send()).rejects.toThrow('AUTH_RESEND_KEY is not set')
+  })
+
+  it('land in the local Mailpit inbox during development', async () => {
+    vi.stubEnv('AUTH_RESEND_KEY', '')
+    vi.stubEnv('AUTH_DEV_OUTBOX', '')
+    vi.stubEnv('AUTH_MAILPIT_URL', 'http://127.0.0.1:8025/')
+    const fetchMock = vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    await send()
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('http://127.0.0.1:8025/api/v1/send')
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      To: [{ Email: 'me@example.com' }],
+      Subject: 'Your password reset code',
+      Text: expect.stringContaining('123456') as unknown,
+    })
+  })
+
+  it('report a Mailpit failure', async () => {
+    vi.stubEnv('AUTH_RESEND_KEY', '')
+    vi.stubEnv('AUTH_DEV_OUTBOX', '')
+    vi.stubEnv('AUTH_MAILPIT_URL', 'http://127.0.0.1:8025')
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('', { status: 500 })))
+    await expect(send()).rejects.toThrow('Mailpit rejected the email (HTTP 500)')
+  })
+
+  it('always use Resend when its key is set, even if Mailpit is configured', async () => {
+    vi.stubEnv('AUTH_RESEND_KEY', 're_test')
+    vi.stubEnv('AUTH_MAILPIT_URL', 'http://127.0.0.1:8025')
+    const fetchMock = vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    await send()
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toBe(
+      'https://api.resend.com/emails',
+    )
   })
 
   it('go to the dev outbox for local testing', async () => {
     vi.stubEnv('AUTH_RESEND_KEY', '')
     vi.stubEnv('AUTH_DEV_OUTBOX', 'true')
+    vi.stubEnv('AUTH_MAILPIT_URL', '')
     const t = setupBackend()
     // Convex Auth passes the action ctx; only runMutation is used.
     await send({

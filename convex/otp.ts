@@ -10,9 +10,12 @@ function isActionCtx(value: unknown): value is ActionCtx {
 }
 
 /**
- * One-time 6-digit codes for "verify your email" and "reset your password". Sent with Resend
- * (https://resend.com). With AUTH_DEV_OUTBOX=true and no Resend key, codes are written to the
- * devOutbox table instead, for local testing only.
+ * One-time 6-digit codes for "verify your email" and "reset your password".
+ *
+ * - Production: sent with Resend (https://resend.com) — whenever AUTH_RESEND_KEY is set.
+ * - Local development, no Resend key:
+ *   - AUTH_MAILPIT_URL (e.g. http://127.0.0.1:8025) delivers to a local Mailpit inbox;
+ *   - AUTH_DEV_OUTBOX=true also stores the code in the devOutbox table (read by e2e tests).
  */
 
 const CODE_TTL_SECONDS = 15 * 60
@@ -44,6 +47,28 @@ async function sendWithResend(to: string, purpose: CodePurpose, code: string): P
   }
 }
 
+/** Mailpit's HTTP send API (https://mailpit.axllent.org/docs/api-v1/) — local inbox only. */
+async function sendWithMailpit(
+  baseUrl: string,
+  to: string,
+  purpose: CodePurpose,
+  code: string,
+): Promise<void> {
+  const { subject, text, html } = renderCodeEmail(purpose, code)
+  const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/v1/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      From: { Email: 'no-reply@invoices.local', Name: 'Invoices' },
+      To: [{ Email: to }],
+      Subject: subject,
+      Text: text,
+      HTML: html,
+    }),
+  })
+  if (!response.ok) throw new Error(`Mailpit rejected the email (HTTP ${response.status})`)
+}
+
 function codeProvider(id: string, purpose: CodePurpose): EmailConfig {
   return Email({
     id,
@@ -51,13 +76,20 @@ function codeProvider(id: string, purpose: CodePurpose): EmailConfig {
     generateVerificationToken: () => Promise.resolve(generateCode()),
     // Convex Auth passes the action ctx as a second argument, but Auth.js' type doesn't declare it.
     async sendVerificationRequest({ identifier: email, token }, ...rest: unknown[]) {
-      if (!process.env.AUTH_RESEND_KEY && process.env.AUTH_DEV_OUTBOX === 'true') {
+      if (process.env.AUTH_RESEND_KEY) {
+        await sendWithResend(email, purpose, token)
+        return
+      }
+      const mailpitUrl = process.env.AUTH_MAILPIT_URL
+      const useOutbox = process.env.AUTH_DEV_OUTBOX === 'true'
+      // Neither dev inbox configured: fail with the production setup hint.
+      if (!mailpitUrl && !useOutbox) throw new Error('AUTH_RESEND_KEY is not set')
+      if (useOutbox) {
         const ctx = rest[0]
         if (!isActionCtx(ctx)) throw new Error('Convex Auth did not pass an action context')
         await ctx.runMutation(internal.devOutbox.record, { email, code: token, purpose })
-        return
       }
-      await sendWithResend(email, purpose, token)
+      if (mailpitUrl) await sendWithMailpit(mailpitUrl, email, purpose, token)
     },
   })
 }

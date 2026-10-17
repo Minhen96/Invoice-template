@@ -28,17 +28,27 @@ e2e/              Playwright end-to-end + accessibility tests
 ```bash
 npm install
 npx playwright install chromium        # first time, for e2e tests
-
-# Terminal 1 — local Convex backend (runs on your machine, no account)
-CONVEX_AGENT_MODE=anonymous npx convex dev
-# once: sign-in keys + local "outbox" so sign-up codes don't need email
-node scripts/dev-auth-env.mjs
-
-# Terminal 2 — the web app
-npm run dev                            # http://localhost:5173
 ```
 
-In local mode, sign-up/reset codes are not emailed. Read the latest one with:
+Mailpit (local email inbox): download `mailpit-windows-amd64.zip` (or your OS) from
+https://github.com/axllent/mailpit/releases and put `mailpit.exe` in `.tools/mailpit/`
+(git-ignored), or install it on your PATH.
+
+```bash
+# Terminal 1 — local Convex backend (runs on your machine, no account)
+CONVEX_AGENT_MODE=anonymous npx convex dev
+# once: sign-in keys, dev outbox and the Mailpit address
+node scripts/dev-auth-env.mjs
+
+# Terminal 2 — local inbox: http://localhost:8025
+npm run mail
+
+# Terminal 3 — the web app: http://localhost:5173
+npm run dev
+```
+
+Sign-up and password-reset codes arrive in Mailpit at **http://localhost:8025**. They are also
+kept in a dev outbox (used by the e2e tests), readable with:
 
 ```bash
 npx convex run devOutbox:latest '{"email":"you@example.com"}'
@@ -51,7 +61,8 @@ npm run lint          # ESLint (incl. architecture rules) + TypeScript
 npm run format:check  # Prettier
 npm test              # Vitest: backend (convex-test) + pages/components (Testing Library + axe)
 npm run coverage      # with 80% thresholds
-npm run e2e           # Playwright journey + WCAG AA checks (needs both terminals above)
+npm run e2e           # Playwright journey + WCAG AA checks (needs the terminals above;
+                      # the Mailpit test is skipped if Mailpit isn't running)
 ```
 
 ## Going live — steps for you

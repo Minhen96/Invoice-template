@@ -2,6 +2,7 @@
 //   - a fresh key pair for session tokens (JWT_PRIVATE_KEY + JWKS)
 //   - SITE_URL (where the web app runs)
 //   - AUTH_DEV_OUTBOX=true, so sign-in codes are stored for tests instead of emailed
+//   - AUTH_MAILPIT_URL, so codes also arrive in the local Mailpit inbox (npm run mail)
 //
 // Usage: node scripts/dev-auth-env.mjs [siteUrl]
 // Never run against production: the dev outbox must stay off there.
@@ -20,6 +21,7 @@ const vars = {
   JWKS: JSON.stringify({ keys: [{ use: 'sig', ...jwk }] }),
   SITE_URL: siteUrl,
   AUTH_DEV_OUTBOX: 'true',
+  AUTH_MAILPIT_URL: 'http://127.0.0.1:8025',
 }
 
 // Run the Convex CLI with this Node directly (no shell), so values with spaces stay intact.
