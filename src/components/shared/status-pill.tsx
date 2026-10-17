@@ -1,17 +1,16 @@
-import { Check, Clock, AlertCircle } from 'lucide-react'
-
-import type { PaymentStatus } from '@convex/lib/invoiceMath'
+import { Check, Clock } from 'lucide-react'
 
 import { cn } from '@/lib/cn'
 
-const STYLES: Record<PaymentStatus, { label: string; className: string; Icon: typeof Check }> = {
+type Status = 'paid' | 'unpaid'
+
+const STYLES: Record<Status, { label: string; className: string; Icon: typeof Check }> = {
   paid: { label: 'Paid', className: 'bg-paid-bg text-paid', Icon: Check },
   unpaid: { label: 'Unpaid', className: 'bg-unpaid-bg text-unpaid', Icon: Clock },
-  overdue: { label: 'Overdue', className: 'bg-overdue-bg text-overdue', Icon: AlertCircle },
 }
 
 /** Payment status. Colour is never the only signal: each state has its own icon and word. */
-export function StatusPill({ status, className }: { status: PaymentStatus; className?: string }) {
+export function StatusPill({ status, className }: { status: Status; className?: string }) {
   const { label, className: tone, Icon } = STYLES[status]
   return (
     <span

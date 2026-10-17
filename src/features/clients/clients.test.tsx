@@ -1,9 +1,9 @@
 import { api } from '@convex/_generated/api'
-import { within } from '@testing-library/react'
+import { waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { fakeConvex } from '@/testing/fake-convex'
-import { listRow } from '@/testing/fixtures'
+import { listRow, templateDoc } from '@/testing/fixtures'
 import { expectNoA11yViolations, renderApp, screen } from '@/testing/render-app'
 
 const acme = {
@@ -37,6 +37,22 @@ describe('clients', () => {
     await expectNoA11yViolations()
   })
 
+  it('searches clients by name, address or email', async () => {
+    fakeConvex.setQuery(api.clients.list, [
+      acme,
+      { ...acme, _id: 'c2', name: 'Astro Radio', address: 'Bukit Jalil', attention: '' },
+    ])
+    fakeConvex.setQuery(api.invoices.list, [])
+    const { user } = await renderApp('/clients')
+    const search = screen.getByRole('searchbox', { name: 'Search clients' })
+    await user.type(search, 'jalil')
+    expect(screen.getByRole('heading', { name: 'Astro Radio' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Acme Sdn Bhd' })).not.toBeInTheDocument()
+    await user.clear(search)
+    await user.type(search, 'zzz')
+    expect(screen.getByText('No clients match.')).toBeInTheDocument()
+  })
+
   it('adds a client, checking the details first', async () => {
     fakeConvex.setQuery(api.clients.list, [])
     fakeConvex.setQuery(api.invoices.list, [])
@@ -53,24 +69,42 @@ describe('clients', () => {
     await user.type(within(dialog).getByLabelText('Name'), 'Astro Radio Sdn Bhd')
     await user.clear(within(dialog).getByLabelText('Email (optional)'))
     await user.click(within(dialog).getByRole('button', { name: 'Add client' }))
-    expect(fakeConvex.handler(api.clients.create)).toHaveBeenCalledWith({
-      name: 'Astro Radio Sdn Bhd',
-      address: '',
-      attention: '',
-      email: '',
-      notes: '',
+    // The form checks the details first (asynchronously), then saves.
+    await waitFor(() => {
+      expect(fakeConvex.handler(api.clients.create)).toHaveBeenCalledWith({
+        name: 'Astro Radio Sdn Bhd',
+        address: '',
+        attention: '',
+        email: '',
+        notes: '',
+      })
     })
   })
 
   it('starts an invoice for a client', async () => {
     fakeConvex.setQuery(api.clients.list, [acme])
     fakeConvex.setQuery(api.invoices.list, [])
+    fakeConvex.setQuery(api.templates.list, [templateDoc()])
+    fakeConvex.setQuery(api.profiles.get, null)
+    fakeConvex.setQuery(api.businesses.list, [])
+    fakeConvex.setQuery(api.bankAccounts.list, [])
     fakeConvex.handler(api.invoices.create).mockResolvedValue('new1')
     const { user } = await renderApp('/clients')
     await user.click(screen.getByRole('button', { name: 'Invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New invoice' })
+    expect(within(dialog).getByLabelText('Client')).toHaveValue('c1')
+    await user.click(within(dialog).getByRole('button', { name: 'Create invoice' }))
     expect(fakeConvex.handler(api.invoices.create)).toHaveBeenCalledWith({
       today: '2026-10-15',
+      templateId: 'tpl1',
       clientId: 'c1',
+      issueDate: '2026-10-15',
+      dueDate: '',
+      items: [],
+      discountSen: 0,
+      taxRateBps: 0,
+      taxLabel: 'SST',
+      notes: '',
     })
   })
 })

@@ -1,6 +1,5 @@
 import type { Id } from '@convex/_generated/dataModel'
 import { formatDate } from '@convex/lib/dates'
-import { paymentStatus } from '@convex/lib/invoiceMath'
 import { formatSen } from '@convex/lib/money'
 import { Link } from '@tanstack/react-router'
 import {
@@ -13,12 +12,17 @@ import {
   PenLine,
   Trash2,
 } from 'lucide-react'
+import { useId } from 'react'
 
+import { InvoiceDocument, PaperPreview, type DocumentInvoice } from '@/components/document'
 import { StatusPill } from '@/components/shared/status-pill'
 import { Button } from '@/components/ui/button'
 import { Menu, type MenuItem } from '@/components/ui/menu'
 
 import type { InvoiceRow } from '../summary'
+
+/** A listed invoice: everything needed for its card, preview included. */
+export type ListedInvoice = InvoiceRow & DocumentInvoice & { logoUrl: string | null }
 
 export interface RowActions {
   onOpen: (id: Id<'invoices'>) => void
@@ -30,101 +34,72 @@ export interface RowActions {
 }
 
 interface InvoiceListProps extends RowActions {
-  rows: readonly InvoiceRow[]
-  today: string
+  rows: readonly ListedInvoice[]
 }
 
 function money(row: InvoiceRow) {
   return `${row.currency} ${formatSen(row.totalSen)}`.trim()
 }
 
-/** Table on wide screens, stacked cards on phones. The whole row opens the invoice. */
-export function InvoiceList({ rows, today, ...actions }: InvoiceListProps) {
+/** Cards with a small preview of each invoice, so they're easy to tell apart at a glance. */
+export function InvoiceList({ rows, ...actions }: InvoiceListProps) {
   return (
-    <>
-      <table className="hidden w-full border-collapse text-[14px] md:table">
-        <thead>
-          <tr className="text-left text-[12.5px] text-muted">
-            <th className="py-3 pr-4 pl-5 font-medium">Number</th>
-            <th className="px-4 py-3 font-medium">Client</th>
-            <th className="px-4 py-3 font-medium">Issued</th>
-            <th className="px-4 py-3 font-medium">Due</th>
-            <th className="px-4 py-3 text-right font-medium">Amount</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="w-14 py-3 pr-3">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row._id}
-              className="group relative border-t border-line transition-colors hover:bg-raised"
-            >
-              <td className="py-3.5 pr-4 pl-5 font-medium">
-                <Link
-                  to="/invoices/$id"
-                  params={{ id: row._id }}
-                  className="outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:outline-focus"
-                >
-                  {row.number}
-                </Link>
-              </td>
-              <td className="max-w-64 truncate px-4 py-3.5">
-                {row.clientName || <span className="text-muted">No client</span>}
-              </td>
-              <td className="px-4 py-3.5 whitespace-nowrap text-muted">
-                {formatDate(row.issueDate, 'd MMM yyyy')}
-              </td>
-              <td className="px-4 py-3.5 whitespace-nowrap text-muted">
-                {row.dueDate ? formatDate(row.dueDate, 'd MMM yyyy') : '—'}
-              </td>
-              <td className="px-4 py-3.5 text-right font-medium whitespace-nowrap tabular">
-                {money(row)}
-              </td>
-              <td className="px-4 py-3.5">
-                <StatusPill status={paymentStatus(row, today)} />
-              </td>
-              <td className="relative z-10 py-2 pr-3 text-right">
-                <RowMenu row={row} {...actions} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <ul
+      aria-label="Invoices"
+      // minmax(0,1fr): the shrunk preview keeps its full-size layout width, which would
+      // otherwise widen a one-column grid past the screen.
+      className="m-0 grid list-none grid-cols-[minmax(0,1fr)] gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3"
+    >
+      {rows.map((row) => (
+        <li key={row._id}>
+          <InvoiceCard row={row} {...actions} />
+        </li>
+      ))}
+    </ul>
+  )
+}
 
-      <ul className="m-0 flex list-none flex-col p-0 md:hidden">
-        {rows.map((row) => (
-          <li
-            key={row._id}
-            className="relative flex items-center gap-3 border-t border-line py-3.5 pr-2 pl-4 first:border-t-0"
-          >
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <div className="flex items-baseline justify-between gap-3">
-                <Link
-                  to="/invoices/$id"
-                  params={{ id: row._id }}
-                  className="truncate font-medium outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:outline-focus"
-                >
-                  {row.clientName || 'No client'}
-                </Link>
-                <span className="shrink-0 font-medium tabular">{money(row)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-[13px] text-muted">
-                <span className="truncate">
-                  {row.number} · {formatDate(row.issueDate, 'd MMM yyyy')}
-                </span>
-                <StatusPill status={paymentStatus(row, today)} />
-              </div>
-            </div>
-            <div className="relative z-10">
-              <RowMenu row={row} {...actions} />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </>
+function InvoiceCard({ row, ...actions }: RowActions & { row: ListedInvoice }) {
+  const titleId = useId()
+  const name = row.name?.trim() ?? ''
+  return (
+    <article
+      aria-labelledby={titleId}
+      className="relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface transition-shadow hover:shadow-[0_4px_16px_rgb(0_0_0/0.06)]"
+    >
+      {/* Decorative: the facts are in the text below. */}
+      <div className="border-b border-line bg-sunken px-6 pt-4" aria-hidden="true">
+        <div className="h-36 overflow-hidden rounded-t-[4px]">
+          <PaperPreview>
+            <InvoiceDocument invoice={row} logoUrl={row.logoUrl} />
+          </PaperPreview>
+        </div>
+      </div>
+      <div className="flex flex-1 items-start gap-2 p-4 pr-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h2 id={titleId} className="m-0 truncate text-[15px] font-semibold">
+            <Link
+              to="/invoices/$id"
+              params={{ id: row._id }}
+              className="outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:outline-focus"
+            >
+              {name || row.number}
+            </Link>
+          </h2>
+          <p className="m-0 truncate text-[13px] text-muted">
+            {name ? `${row.number} · ` : ''}
+            {row.clientName || 'No client'} · {formatDate(row.issueDate, 'd MMM yyyy')}
+          </p>
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className="font-semibold tabular">{money(row)}</span>
+            <StatusPill status={row.status} />
+          </div>
+        </div>
+        <div className="relative z-10 -mt-1">
+          <RowMenu row={row} {...actions} />
+        </div>
+      </div>
+    </article>
   )
 }
 

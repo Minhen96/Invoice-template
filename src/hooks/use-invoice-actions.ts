@@ -48,12 +48,9 @@ export function useInvoiceActions() {
   const print = useCallback(
     async (id: Id<'invoices'>) => {
       try {
-        const [invoice, profile] = await Promise.all([
-          convex.query(api.invoices.get, { id }),
-          convex.query(api.profiles.get, {}),
-        ])
+        const invoice = await convex.query(api.invoices.get, { id })
         if (!invoice) throw new Error('missing')
-        await printInvoice(invoice, profile?.logoUrl ?? null)
+        await printInvoice(invoice, invoice.logoUrl)
       } catch {
         toast.error("Couldn't open the PDF. Please try again.")
       }

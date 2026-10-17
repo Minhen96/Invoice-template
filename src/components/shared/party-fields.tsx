@@ -1,6 +1,7 @@
 import type { Business, Payment } from '@convex/lib/validators'
+import { useState } from 'react'
 
-import { Field, TextAreaField } from '@/components/ui/field'
+import { Field, SelectField, TextAreaField } from '@/components/ui/field'
 
 /** Your business details — the same fields in Settings and in each invoice. */
 export function BusinessFields({
@@ -75,21 +76,11 @@ export function PaymentFields({
         maxLength={200}
         onChange={(e) => set('accountName', e.target.value)}
       />
-      <div className="grid grid-cols-[0.7fr_1fr] gap-4">
-        <Field
-          label="ID label"
-          placeholder="IC No"
-          value={value.idLabel}
-          maxLength={200}
-          onChange={(e) => set('idLabel', e.target.value)}
-        />
-        <Field
-          label="ID number (optional)"
-          value={value.idNumber}
-          maxLength={200}
-          onChange={(e) => set('idNumber', e.target.value)}
-        />
-      </div>
+      <IdNumberFields
+        idLabel={value.idLabel}
+        idNumber={value.idNumber}
+        onChange={(patch) => onChange({ ...value, ...patch })}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Bank"
@@ -115,5 +106,70 @@ export function PaymentFields({
         onChange={(e) => set('extra', e.target.value)}
       />
     </>
+  )
+}
+
+/** Common ID types, printed before the number (e.g. "IC No: 000928-03-0320"). */
+const ID_TYPES = ['IC No', 'Passport No', 'SSM No', 'Company No'] as const
+const OTHER = 'other'
+
+/**
+ * An optional ID shown in the payment details. The type is a short pick-list; "Other…" lets you
+ * type your own wording.
+ */
+function IdNumberFields({
+  idLabel,
+  idNumber,
+  onChange,
+}: {
+  idLabel: string
+  idNumber: string
+  onChange: (patch: { idLabel?: string; idNumber?: string }) => void
+}) {
+  const known = (ID_TYPES as readonly string[]).includes(idLabel)
+  const [custom, setCustom] = useState(!known && idLabel !== '')
+  const selectValue = custom ? OTHER : known ? idLabel : 'IC No'
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-[0.8fr_1fr] gap-4">
+        <SelectField
+          label="ID type"
+          value={selectValue}
+          onChange={(e) => {
+            if (e.target.value === OTHER) {
+              setCustom(true)
+              onChange({ idLabel: '' })
+            } else {
+              setCustom(false)
+              onChange({ idLabel: e.target.value })
+            }
+          }}
+        >
+          {ID_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+          <option value={OTHER}>Other…</option>
+        </SelectField>
+        <Field
+          label="ID number (optional)"
+          hint={`Printed as “${idLabel || 'ID'}: …”`}
+          value={idNumber}
+          maxLength={200}
+          onChange={(e) => onChange({ idNumber: e.target.value })}
+        />
+      </div>
+      {custom ? (
+        <Field
+          label="ID type name"
+          placeholder="e.g. Tax No"
+          value={idLabel}
+          maxLength={60}
+          onChange={(e) => onChange({ idLabel: e.target.value })}
+        />
+      ) : null}
+    </div>
   )
 }

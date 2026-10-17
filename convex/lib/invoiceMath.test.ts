@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeTotals, lineAmountSen, paymentStatus } from './invoiceMath'
+import { computeTotals, lineAmountSen } from './invoiceMath'
 
 describe('lineAmountSen', () => {
   it('multiplies rate by quantity in whole sen', () => {
@@ -50,20 +50,5 @@ describe('computeTotals', () => {
 
   it('handles an empty invoice', () => {
     expect(computeTotals({ items: [], discountSen: 0, taxRateBps: 0 }).totalSen).toBe(0)
-  })
-})
-
-describe('paymentStatus', () => {
-  const today = '2026-10-15'
-
-  it('paid wins over a past due date', () => {
-    expect(paymentStatus({ status: 'paid', dueDate: '2026-01-01' }, today)).toBe('paid')
-  })
-  it('is overdue only after the due date', () => {
-    expect(paymentStatus({ status: 'unpaid', dueDate: '2026-10-14' }, today)).toBe('overdue')
-    expect(paymentStatus({ status: 'unpaid', dueDate: '2026-10-15' }, today)).toBe('unpaid')
-  })
-  it('is never overdue without a due date', () => {
-    expect(paymentStatus({ status: 'unpaid', dueDate: '' }, today)).toBe('unpaid')
   })
 })

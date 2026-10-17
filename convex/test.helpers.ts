@@ -1,6 +1,9 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
 
+import { api } from './_generated/api'
+import { DEFAULT_TEMPLATE } from './lib/defaults'
+import type { TemplateFields } from './lib/validators'
 import schema from './schema'
 
 // Every Convex module, as the deployment sees it: no tests, helpers or type declarations.
@@ -31,4 +34,12 @@ export async function signedInUser(t: TestBackend, email = 'owner@example.com') 
     return { userId, sessionId }
   })
   return { userId, as: t.withIdentity({ subject: `${userId}|${sessionId}` }) }
+}
+
+/** A template for `as`, starting from the defaults. */
+export async function createTemplate(
+  as: Awaited<ReturnType<typeof signedInUser>>['as'],
+  fields: Partial<TemplateFields> = {},
+) {
+  return as.mutation(api.templates.create, { fields: { ...DEFAULT_TEMPLATE, ...fields } })
 }

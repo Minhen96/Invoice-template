@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { api } from './_generated/api'
-import { signedInUser, setupBackend, TODAY } from './test.helpers'
+import { createTemplate, signedInUser, setupBackend, TODAY } from './test.helpers'
 
 const astro = {
   name: '  Astro Radio Sdn Bhd ',
@@ -39,7 +39,11 @@ describe('clients', () => {
     const t = setupBackend()
     const { as } = await signedInUser(t)
     const clientId = await as.mutation(api.clients.create, astro)
-    const invoiceId = await as.mutation(api.invoices.create, { today: TODAY, clientId })
+    const invoiceId = await as.mutation(api.invoices.create, {
+      today: TODAY,
+      templateId: await createTemplate(as),
+      clientId,
+    })
 
     await as.mutation(api.clients.remove, { id: clientId })
 

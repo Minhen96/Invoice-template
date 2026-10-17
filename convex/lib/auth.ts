@@ -4,7 +4,10 @@ import type { Doc, Id, TableNames } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 import { appError } from './rules'
 
-type OwnedTable = Extract<TableNames, 'profiles' | 'clients' | 'invoices'>
+type OwnedTable = Extract<
+  TableNames,
+  'profiles' | 'clients' | 'invoices' | 'templates' | 'items' | 'businesses' | 'bankAccounts'
+>
 
 /** The signed-in user's id, or an `unauthorized` error. Every public function starts here. */
 export async function requireUserId(ctx: Pick<QueryCtx, 'auth'>): Promise<Id<'users'>> {

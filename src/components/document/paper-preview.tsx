@@ -39,7 +39,13 @@ export function PaperPreview({ children, className, maxScale = 1 }: PaperPreview
   }, [maxScale])
 
   return (
-    <div ref={outer} className={cn('w-full', className)} style={{ height: height * scale }}>
+    // overflow-hidden: the page is shrunk with a transform, which doesn't shrink its layout box
+    // (794px) — without clipping, phones would scroll sideways.
+    <div
+      ref={outer}
+      className={cn('w-full overflow-hidden', className)}
+      style={{ height: height * scale }}
+    >
       <div
         ref={inner}
         className="origin-top-left overflow-hidden rounded-[4px] shadow-[0_1px_3px_rgb(0_0_0/0.08),0_8px_28px_rgb(0_0_0/0.08)]"

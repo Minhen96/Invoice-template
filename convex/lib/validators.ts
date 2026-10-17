@@ -5,13 +5,14 @@ import { v, type Infer } from 'convex/values'
  * Value rules Convex validators can't express (lengths, ranges, formats) live in ./rules.ts.
  */
 
-export const templateId = v.union(
+/** The look of the printed page (see src/components/document). */
+export const layoutId = v.union(
   v.literal('blush'),
   v.literal('classic'),
   v.literal('minimal'),
   v.literal('bold'),
 )
-export type TemplateId = Infer<typeof templateId>
+export type LayoutId = Infer<typeof layoutId>
 
 export const dateFormat = v.union(
   v.literal('d/m/yyyy'),
@@ -40,14 +41,23 @@ export const payment = v.object({
 })
 export type Payment = Infer<typeof payment>
 
-/** Column headings on the items table, e.g. "Rate Per Session / Hour*". */
-export const labels = v.object({
+/** One of the user's own text columns (e.g. "Date", "Venue"). */
+export const extraColumn = v.object({ id: v.string(), label: v.string() })
+export type ExtraColumn = Infer<typeof extraColumn>
+
+/**
+ * The items table: headings (e.g. "Rate Per Session / Hour*"), whether Rate and Quantity are
+ * shown (when not, each item is just an amount) and up to 3 extra text columns.
+ */
+export const columns = v.object({
   description: v.string(),
   rate: v.string(),
   quantity: v.string(),
   amount: v.string(),
+  showRateQty: v.boolean(),
+  extra: v.array(extraColumn),
 })
-export type Labels = Infer<typeof labels>
+export type Columns = Infer<typeof columns>
 
 export const billTo = v.object({
   name: v.string(),
@@ -61,29 +71,40 @@ export const lineItem = v.object({
   description: v.string(),
   rateSen: v.number(),
   quantity: v.number(),
+  /** Values of the extra text columns, by column id. */
+  extra: v.record(v.string(), v.string()),
 })
 export type LineItem = Infer<typeof lineItem>
 
-export const profileDefaults = v.object({
+/**
+ * A saved invoice template: the look and terms of an invoice (business and bank details live
+ * in the profile). Creating an invoice copies these onto it, so editing a template never
+ * changes past invoices.
+ */
+export const templateFields = {
+  name: v.string(),
+  layout: layoutId,
+  accent: v.string(),
   title: v.string(),
   currency: v.string(),
   dateFormat,
   /** Days from issue to due date; null = no due date. */
   dueDays: v.union(v.number(), v.null()),
-  template: templateId,
-  accent: v.string(),
+  columns,
   notes: v.string(),
-  labels,
-})
-export type ProfileDefaults = Infer<typeof profileDefaults>
+}
+export const templateFieldsObject = v.object(templateFields)
+export type TemplateFields = Infer<typeof templateFieldsObject>
 
 export const invoiceStatus = v.union(v.literal('unpaid'), v.literal('paid'))
 
 /** Everything the editor can change on an invoice (status has its own mutation). */
 export const invoiceContent = {
+  /** Only for you (never printed), e.g. "Astro – Oct 2026"; '' or missing = none. */
+  name: v.optional(v.string()),
   number: v.string(),
   title: v.string(),
-  template: templateId,
+  layout: layoutId,
   accent: v.string(),
   currency: v.string(),
   dateFormat,
@@ -92,7 +113,7 @@ export const invoiceContent = {
   dueDate: v.string(),
   clientId: v.optional(v.id('clients')),
   billTo,
-  labels,
+  columns,
   items: v.array(lineItem),
   discountSen: v.number(),
   taxRateBps: v.number(),

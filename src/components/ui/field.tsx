@@ -139,6 +139,7 @@ interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: ReactNode
   hint?: ReactNode
   error?: string | undefined
+  labelAside?: ReactNode
   wrapperClassName?: string
   ref?: Ref<HTMLSelectElement>
 }
@@ -147,6 +148,7 @@ export function SelectField({
   label,
   hint,
   error,
+  labelAside,
   wrapperClassName,
   id,
   className,
@@ -160,6 +162,7 @@ export function SelectField({
       label={label}
       hint={hint}
       error={error}
+      labelAside={labelAside}
       className={wrapperClassName}
     >
       {(aria) => (

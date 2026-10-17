@@ -6,15 +6,15 @@ import { FilePlus2, MoreHorizontal, PenLine, Plus, Trash2, Users } from 'lucide-
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
+import { ClientDialog } from '@/components/shared/client-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { Menu } from '@/components/ui/menu'
+import { SearchField } from '@/components/ui/search-field'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCreateInvoice } from '@/hooks/use-create-invoice'
+import { useNewInvoice } from '@/hooks/new-invoice-context'
 import { errorMessage } from '@/lib/errors'
-
-import { ClientDialog } from './client-dialog'
 
 interface ClientTotals {
   count: number
@@ -25,9 +25,19 @@ interface ClientTotals {
 export function ClientsPage() {
   const clients = useQuery(api.clients.list)
   const invoices = useQuery(api.invoices.list)
-  const { createInvoice } = useCreateInvoice()
+  const newInvoice = useNewInvoice()
   const [editing, setEditing] = useState<Doc<'clients'> | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Doc<'clients'> | null>(null)
+  const [query, setQuery] = useState('')
+  const shown = useMemo(() => {
+    const words = query.trim().toLowerCase()
+    if (words === '') return clients ?? []
+    return (clients ?? []).filter((client) =>
+      [client.name, client.address, client.attention, client.email].some((field) =>
+        field.toLowerCase().includes(words),
+      ),
+    )
+  }, [clients, query])
 
   const totals = useMemo(() => {
     const map = new Map<string, ClientTotals>()
@@ -81,74 +91,90 @@ export function ClientsPage() {
           </Button>
         </Card>
       ) : (
-        <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.map((client) => {
-            const info = totals.get(client._id)
-            const unpaid = Object.entries(info?.unpaid ?? {}).filter(([, sen]) => sen > 0)
-            return (
-              <li key={client._id}>
-                <Card className="flex h-full flex-col gap-3 p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h2 className="m-0 truncate text-[15px] font-semibold">{client.name}</h2>
-                      {client.attention ? (
-                        <p className="m-0 mt-0.5 truncate text-[13px] text-muted">
-                          Attn: {client.attention}
+        <>
+          <SearchField
+            label="Search clients"
+            value={query}
+            placeholder="Search name, address, email"
+            onChange={setQuery}
+          />
+          {shown.length === 0 ? (
+            <Card className="px-6 py-12 text-center text-sm text-muted">No clients match.</Card>
+          ) : (
+            <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+              {shown.map((client) => {
+                const info = totals.get(client._id)
+                const unpaid = Object.entries(info?.unpaid ?? {}).filter(([, sen]) => sen > 0)
+                return (
+                  <li key={client._id}>
+                    <Card className="flex h-full flex-col gap-3 p-5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h2 className="m-0 truncate text-[15px] font-semibold">{client.name}</h2>
+                          {client.attention ? (
+                            <p className="m-0 mt-0.5 truncate text-[13px] text-muted">
+                              Attn: {client.attention}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Menu
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Actions for ${client.name}`}
+                              className="-mt-1 -mr-2"
+                            >
+                              <MoreHorizontal />
+                            </Button>
+                          }
+                          items={[
+                            {
+                              label: 'Edit',
+                              icon: <PenLine />,
+                              onSelect: () => setEditing(client),
+                            },
+                            'separator',
+                            {
+                              label: 'Delete',
+                              icon: <Trash2 />,
+                              danger: true,
+                              onSelect: () => setDeleting(client),
+                            },
+                          ]}
+                        />
+                      </div>
+                      {client.address ? (
+                        <p className="m-0 line-clamp-3 text-[13px] whitespace-pre-line text-muted">
+                          {client.address}
                         </p>
                       ) : null}
-                    </div>
-                    <Menu
-                      trigger={
+                      <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-3">
+                        <div className="text-[13px]">
+                          <div className="text-muted">
+                            {info?.count ?? 0} invoice{info?.count === 1 ? '' : 's'}
+                          </div>
+                          <div className="font-medium tabular">
+                            {unpaid.length === 0
+                              ? 'Nothing owed'
+                              : `${unpaid.map(([cur, sen]) => `${cur} ${formatSen(sen)}`).join(' · ')} unpaid`}
+                          </div>
+                        </div>
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Actions for ${client.name}`}
-                          className="-mt-1 -mr-2"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => newInvoice({ clientId: client._id })}
                         >
-                          <MoreHorizontal />
+                          <FilePlus2 /> Invoice
                         </Button>
-                      }
-                      items={[
-                        { label: 'Edit', icon: <PenLine />, onSelect: () => setEditing(client) },
-                        'separator',
-                        {
-                          label: 'Delete',
-                          icon: <Trash2 />,
-                          danger: true,
-                          onSelect: () => setDeleting(client),
-                        },
-                      ]}
-                    />
-                  </div>
-                  {client.address ? (
-                    <p className="m-0 line-clamp-3 text-[13px] whitespace-pre-line text-muted">
-                      {client.address}
-                    </p>
-                  ) : null}
-                  <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-3">
-                    <div className="text-[13px]">
-                      <div className="text-muted">
-                        {info?.count ?? 0} invoice{info?.count === 1 ? '' : 's'}
                       </div>
-                      <div className="font-medium tabular">
-                        {unpaid.length === 0
-                          ? 'Nothing owed'
-                          : `${unpaid.map(([cur, sen]) => `${cur} ${formatSen(sen)}`).join(' · ')} unpaid`}
-                      </div>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => void createInvoice(client._id)}
-                    >
-                      <FilePlus2 /> Invoice
-                    </Button>
-                  </div>
-                </Card>
-              </li>
-            )
-          })}
-        </ul>
+                    </Card>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
       )}
 
       <ClientDialog client={editing} onClose={() => setEditing(null)} />

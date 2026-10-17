@@ -1,9 +1,10 @@
-import { paymentStatus, type PaymentStatus } from '@convex/lib/invoiceMath'
 import { formatSen } from '@convex/lib/money'
 
 /** The light invoice rows returned by `invoices.list`. */
 export interface InvoiceRow {
   _id: string
+  /** Your own name for it ('' = none). */
+  name?: string | undefined
   number: string
   title: string
   clientId?: string | undefined
@@ -22,40 +23,28 @@ export type Amounts = Record<string, number>
 export interface Summary {
   outstanding: Amounts
   outstandingCount: number
-  overdue: Amounts
-  overdueCount: number
   paidThisYear: Amounts
-  invoicedThisYear: Amounts
 }
 
 function add(amounts: Amounts, currency: string, sen: number): void {
   amounts[currency] = (amounts[currency] ?? 0) + sen
 }
 
-/** Dashboard figures. "This year" follows the payment date for paid and the issue date for invoiced. */
+/** Dashboard figures. "Paid this year" follows the payment date. */
 export function summarise(rows: readonly InvoiceRow[], today: string): Summary {
   const year = today.slice(0, 4)
   const summary: Summary = {
     outstanding: {},
     outstandingCount: 0,
-    overdue: {},
-    overdueCount: 0,
     paidThisYear: {},
-    invoicedThisYear: {},
   }
   for (const row of rows) {
-    const status = paymentStatus(row, today)
-    if (row.issueDate.startsWith(year)) add(summary.invoicedThisYear, row.currency, row.totalSen)
-    if (status === 'paid') {
+    if (row.status === 'paid') {
       if (row.paidAt.startsWith(year)) add(summary.paidThisYear, row.currency, row.totalSen)
       continue
     }
     add(summary.outstanding, row.currency, row.totalSen)
     summary.outstandingCount++
-    if (status === 'overdue') {
-      add(summary.overdue, row.currency, row.totalSen)
-      summary.overdueCount++
-    }
   }
   return summary
 }
@@ -68,43 +57,26 @@ export function formatAmounts(amounts: Amounts, preferred = 'RM'): string {
   return entries.map(([currency, sen]) => `${currency} ${formatSen(sen)}`.trim()).join(' · ')
 }
 
-export const STATUS_FILTERS = ['all', 'unpaid', 'overdue', 'paid'] as const
+export const STATUS_FILTERS = ['all', 'unpaid', 'paid'] as const
 export type StatusFilter = (typeof STATUS_FILTERS)[number]
 
-/**
- * Filter by status tab and a free-text search over number, client and amount. "Unpaid" includes
- * overdue invoices (they are unpaid too).
- */
-export function filterInvoices(
-  rows: readonly InvoiceRow[],
+/** Filter by status tab and a free-text search over name, number, client and amount. */
+export function filterInvoices<T extends InvoiceRow>(
+  rows: readonly T[],
   { status, q }: { status: StatusFilter; q: string },
-  today: string,
-): InvoiceRow[] {
+): T[] {
   const query = q.trim().toLowerCase()
   return rows.filter((row) => {
-    const rowStatus: PaymentStatus = paymentStatus(row, today)
-    if (status === 'paid' && rowStatus !== 'paid') return false
-    if (status === 'unpaid' && rowStatus === 'paid') return false
-    if (status === 'overdue' && rowStatus !== 'overdue') return false
+    if (status !== 'all' && row.status !== status) return false
     if (query === '') return true
-    return [row.number, row.clientName, formatSen(row.totalSen)].some((field) =>
+    return [row.name ?? '', row.number, row.clientName, formatSen(row.totalSen)].some((field) =>
       field.toLowerCase().includes(query),
     )
   })
 }
 
-export function countByFilter(
-  rows: readonly InvoiceRow[],
-  today: string,
-): Record<StatusFilter, number> {
-  const counts: Record<StatusFilter, number> = { all: rows.length, unpaid: 0, overdue: 0, paid: 0 }
-  for (const row of rows) {
-    const status = paymentStatus(row, today)
-    if (status === 'paid') counts.paid++
-    else {
-      counts.unpaid++
-      if (status === 'overdue') counts.overdue++
-    }
-  }
+export function countByFilter(rows: readonly InvoiceRow[]): Record<StatusFilter, number> {
+  const counts: Record<StatusFilter, number> = { all: rows.length, unpaid: 0, paid: 0 }
+  for (const row of rows) counts[row.status]++
   return counts
 }

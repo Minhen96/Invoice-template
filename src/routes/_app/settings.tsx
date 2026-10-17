@@ -1,9 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { PageError } from '@/components/shared/page-error'
-import { SettingsPage } from '@/features/settings'
-
+/** Settings moved into Account; old links keep working. */
 export const Route = createFileRoute('/_app/settings')({
-  component: SettingsPage,
-  errorComponent: () => <PageError what="settings" />,
+  beforeLoad: () => {
+    throw redirect({ to: '/account', replace: true })
+  },
 })

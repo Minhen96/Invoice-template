@@ -2,12 +2,16 @@
 
 A clean, simple invoicing web app: pick a template, fill in the invoice with a live preview, save it as a PDF, and track what's been paid. Log in from any device.
 
-- **4 templates** — Blush (the original pink design), Classic, Minimal, Bold — each with an accent colour
-- **Live A4 preview** with autosave; **Download PDF** uses the browser's "Save as PDF" (sharp, selectable text)
+- **Templates, set once** — look (Blush, Classic, Minimal, Bold + accent colour + logo), your
+  business and bank details, title, currency, date style, payment terms, column names and notes
+- **New invoice in seconds** — pick template and client (last ones pre-picked), add items
+- **Remembered items** — everything you invoice is remembered with its last price and suggested as
+  you type; edit or delete them on the Items page
+- **Live A4 preview** with autosave; **Download PDF** uses the browser's "Save as PDF"
 - **Paid / unpaid / overdue** tracking, totals on the dashboard, search and filters
 - **Duplicate for next month** — new number, dates +1 month, "OCT 2026" → "NOV 2026"
 - **Saved clients** (address, attention, usual notes such as vendor code)
-- Tax (e.g. SST) and discount, PAID stamp, logo, CSV export and full JSON backup
+- Tax (e.g. SST) and discount when needed, PAID stamp, CSV export and full JSON backup
 - Email + password (6-digit email codes, password reset) and Google sign-in; sessions last 60 days while used
 
 ## Stack
@@ -18,7 +22,7 @@ Backend: [Convex](https://convex.dev) (database + functions) with Convex Auth. E
 ```
 convex/           backend functions, schema, auth; convex/lib = pure shared logic (money, dates, totals…)
 src/routes/       pages (thin) — _guest = signed-out pages, _app = signed-in pages
-src/features/     auth, invoices (dashboard), editor, clients, settings
+src/features/     auth, invoices (dashboard), editor, templates, items, clients, settings
 src/components/   ui (buttons, fields, dialogs), shared, document (the invoice templates + print)
 e2e/              Playwright end-to-end + accessibility tests
 ```

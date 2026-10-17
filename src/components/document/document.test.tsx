@@ -1,4 +1,4 @@
-import type { TemplateId } from '@convex/lib/validators'
+import type { LayoutId } from '@convex/lib/validators'
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
@@ -28,15 +28,16 @@ describe('buildDocumentView', () => {
       tax: null,
       paidOn: null,
     })
-    expect(view.labels.rate).toBe('Rate Per Session / Hour* (RM)')
-    expect(view.labels.amount).toBe('Total (RM)')
+    expect(view.columns.map((c) => c.label)).toEqual([
+      'Description',
+      'Rate Per Session / Hour* (RM)',
+      'Quantity (session)',
+      'Total (RM)',
+    ])
     expect(view.rows).toEqual([
       {
         id: 'a',
-        description: 'FULL TIME ANNOUNCER OCT 2026\n(20 days)',
-        rate: '250.00',
-        quantity: '20',
-        amount: '5,000.00',
+        cells: ['FULL TIME ANNOUNCER OCT 2026\n(20 days)', '250.00', '20', '5,000.00'],
       },
     ])
     expect(view.paymentLines).toEqual([
@@ -50,8 +51,8 @@ describe('buildDocumentView', () => {
     const view = buildDocumentView(
       docInvoice({
         items: [
-          { id: 'x', description: '  ', rateSen: 0, quantity: 1 },
-          { id: 'y', description: 'Editing', rateSen: 0, quantity: 1.5 },
+          { id: 'x', description: '  ', rateSen: 0, quantity: 1, extra: {} },
+          { id: 'y', description: 'Editing', rateSen: 0, quantity: 1.5, extra: {} },
         ],
         payment: {
           accountName: '',
@@ -65,8 +66,55 @@ describe('buildDocumentView', () => {
       null,
     )
     expect(view.rows.map((r) => r.id)).toEqual(['y'])
-    expect(view.rows[0]?.quantity).toBe('1.5')
+    expect(view.rows[0]?.cells[2]).toBe('1.5')
     expect(view.paymentLines).toEqual(['DuitNow: 0123'])
+  })
+
+  it('adds your own columns after the description', () => {
+    const view = buildDocumentView(
+      docInvoice({
+        columns: {
+          ...invoiceDoc().columns,
+          extra: [
+            { id: 'date', label: 'Date' },
+            { id: 'venue', label: 'Venue' },
+          ],
+        },
+        items: [
+          {
+            id: 'a',
+            description: 'Live show',
+            rateSen: 50000,
+            quantity: 1,
+            extra: { date: '7 Oct', venue: 'Bukit Jalil' },
+          },
+          // A row with only an extra value still prints.
+          { id: 'b', description: '', rateSen: 0, quantity: 1, extra: { date: '8 Oct' } },
+        ],
+      }),
+      null,
+    )
+    expect(view.columns.map((c) => [c.label, c.kind])).toEqual([
+      ['Description', 'desc'],
+      ['Date', 'text'],
+      ['Venue', 'text'],
+      ['Rate Per Session / Hour* (RM)', 'num'],
+      ['Quantity (session)', 'num'],
+      ['Total (RM)', 'num'],
+    ])
+    expect(view.rows.map((r) => r.cells)).toEqual([
+      ['Live show', '7 Oct', 'Bukit Jalil', '500.00', '1', '500.00'],
+      ['', '8 Oct', '', '', '1', '0.00'],
+    ])
+  })
+
+  it('can show just one amount per item', () => {
+    const view = buildDocumentView(
+      docInvoice({ columns: { ...invoiceDoc().columns, showRateQty: false, amount: 'Amount' } }),
+      null,
+    )
+    expect(view.columns.map((c) => c.label)).toEqual(['Description', 'Amount (RM)'])
+    expect(view.rows[0]?.cells).toEqual(['FULL TIME ANNOUNCER OCT 2026\n(20 days)', '5,000.00'])
   })
 
   it('shows discount and tax only when used', () => {
@@ -94,12 +142,12 @@ describe('buildDocumentView', () => {
 })
 
 describe('InvoiceDocument', () => {
-  it.each<TemplateId>(['blush', 'classic', 'minimal', 'bold'])(
+  it.each<LayoutId>(['blush', 'classic', 'minimal', 'bold'])(
     '%s shows everything the client needs',
     (template) => {
       render(
         <InvoiceDocument
-          invoice={docInvoice({ template })}
+          invoice={docInvoice({ layout: template })}
           logoUrl="https://example.com/logo.png"
         />,
       )

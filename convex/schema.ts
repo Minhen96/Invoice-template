@@ -8,7 +8,7 @@ import {
   invoiceContent,
   invoiceStatus,
   payment,
-  profileDefaults,
+  templateFields,
 } from './lib/validators'
 
 /**
@@ -18,16 +18,56 @@ import {
 export default defineSchema({
   ...authTables,
 
-  /** One per user: details copied into every new invoice. */
+  /** One per user: numbering, and what the "New invoice" popup should pre-pick. */
   profiles: defineTable({
     userId: v.id('users'),
-    business,
-    payment,
-    defaults: profileDefaults,
-    logoId: v.optional(v.id('_storage')),
     /** Suggested number for the next new invoice. */
     nextNumber: v.string(),
+    lastTemplateId: v.optional(v.id('templates')),
+    lastClientId: v.optional(v.id('clients')),
   }).index('by_user', ['userId']),
+
+  /** Businesses you invoice as. One is the default. Copied onto each new invoice. */
+  businesses: defineTable({
+    userId: v.id('users'),
+    ...business.fields,
+    isDefault: v.boolean(),
+  }).index('by_user', ['userId']),
+
+  /** Where clients pay you. One is the default. Copied onto each new invoice. */
+  bankAccounts: defineTable({
+    userId: v.id('users'),
+    ...payment.fields,
+    isDefault: v.boolean(),
+  }).index('by_user', ['userId']),
+
+  /** Saved invoice templates (look, columns, terms). Copied onto each new invoice. */
+  templates: defineTable({
+    userId: v.id('users'),
+    ...templateFields,
+    /** Which business / bank account to use; unset (or deleted) = the default one. */
+    businessId: v.optional(v.id('businesses')),
+    bankAccountId: v.optional(v.id('bankAccounts')),
+    logoId: v.optional(v.id('_storage')),
+  }).index('by_user_name', ['userId', 'name']),
+
+  /**
+   * Items remembered from invoices, offered as suggestions. One row per description
+   * (matched by `key`, see lib/itemKey.ts), keeping the latest price.
+   */
+  items: defineTable({
+    userId: v.id('users'),
+    key: v.string(),
+    description: v.string(),
+    rateSen: v.number(),
+    quantity: v.number(),
+    useCount: v.number(),
+    lastUsedAt: v.number(),
+    /** Last invoice it was remembered from (counts each invoice once). */
+    lastInvoiceId: v.optional(v.id('invoices')),
+  })
+    .index('by_user_key', ['userId', 'key'])
+    .index('by_user_used', ['userId', 'lastUsedAt']),
 
   clients: defineTable({
     userId: v.id('users'),
@@ -37,6 +77,10 @@ export default defineSchema({
   invoices: defineTable({
     userId: v.id('users'),
     ...invoiceContent,
+    /** Template it was made from (set by the server; the template may since be deleted). */
+    templateId: v.optional(v.id('templates')),
+    /** Logo copied from the template (set by the server, never by the browser). */
+    logoId: v.optional(v.id('_storage')),
     status: invoiceStatus,
     /** ISO date the payment arrived ('' when unpaid). */
     paidAt: v.string(),

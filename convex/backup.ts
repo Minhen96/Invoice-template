@@ -1,5 +1,6 @@
 import { query } from './_generated/server'
 import { requireUserId } from './lib/auth'
+import { listOwn } from './lib/defaultable'
 import { findProfile } from './profiles'
 
 /**
@@ -19,19 +20,51 @@ export const exportData = query({
       .query('invoices')
       .withIndex('by_user_issue', (q) => q.eq('userId', userId))
       .collect()
+    const templates = await ctx.db
+      .query('templates')
+      .withIndex('by_user_name', (q) => q.eq('userId', userId))
+      .collect()
+    const items = await ctx.db
+      .query('items')
+      .withIndex('by_user_used', (q) => q.eq('userId', userId))
+      .collect()
     return {
-      version: 1,
-      profile: profile
-        ? {
-            business: profile.business,
-            payment: profile.payment,
-            defaults: profile.defaults,
-            nextNumber: profile.nextNumber,
-          }
-        : null,
+      version: 4,
+      businesses: (await listOwn(ctx, userId, 'businesses')).map(
+        ({ _id, _creationTime, userId: _owner, ...row }) => row,
+      ),
+      bankAccounts: (await listOwn(ctx, userId, 'bankAccounts')).map(
+        ({ _id, _creationTime, userId: _owner, ...row }) => row,
+      ),
+      nextNumber: profile?.nextNumber ?? null,
+      templates: templates.map(
+        ({
+          _id,
+          _creationTime,
+          userId: _owner,
+          logoId: _logo,
+          businessId: _business,
+          bankAccountId: _bank,
+          ...template
+        }) => template,
+      ),
+      items: items.map(({ description, rateSen, quantity, useCount }) => ({
+        description,
+        rateSen,
+        quantity,
+        useCount,
+      })),
       clients: clients.map(({ _id, _creationTime, userId: _owner, ...client }) => client),
       invoices: invoices.map(
-        ({ _id, _creationTime, userId: _owner, clientId: _client, ...invoice }) => invoice,
+        ({
+          _id,
+          _creationTime,
+          userId: _owner,
+          clientId: _client,
+          templateId: _template,
+          logoId: _logo,
+          ...invoice
+        }) => invoice,
       ),
     }
   },

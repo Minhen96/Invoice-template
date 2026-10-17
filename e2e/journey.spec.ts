@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { signUp, uniqueEmail } from './helpers'
+import { fillAccountDetails, firstInvoice, signUp, uniqueEmail } from './helpers'
 
 /**
  * The main story: a freelancer signs up, fills in their details once, recreates their monthly
@@ -11,56 +11,59 @@ test('sign up → invoice → PDF → paid → next month', async ({ page }) => 
   const email = uniqueEmail('journey')
   await signUp(page, email)
 
-  // Details once, in Settings.
-  await page.getByRole('link', { name: 'Open settings' }).click()
-  const business = page.locator('div.rounded-card', {
-    has: page.getByRole('heading', { name: 'Your business' }),
-  })
-  await business.getByLabel('Business name').fill('LIM KAI XIN TRADING AS LIM KAI XIN')
-  await business.getByLabel('Registration no. (optional)').fill('202303080716 (KT0000000-W)')
-  await business
-    .getByLabel('Address')
-    .fill('Lot 1, Jalan Contoh\nImpiana Condovilla,\n16100 Kota Bharu, Kelantan')
-  await business.getByRole('button', { name: 'Save changes' }).click()
-  await expect(page.getByText('Business details saved')).toBeVisible()
+  // Business and bank details once, in Account; then the template (look + columns).
+  await fillAccountDetails(page)
+  await page.getByRole('link', { name: 'Templates', exact: true }).first().click()
+  await page.getByRole('button', { name: /Create your first template/ }).click()
+  await expect(page).toHaveURL(/\/templates\//)
+  await page.getByLabel('Template name').fill('Astro announcer')
+  await page.getByLabel('Rate column heading').fill('Rate Per Session / Hour*')
+  await page.getByLabel('Quantity column heading').fill('Quantity (session)')
+  await expect(page.getByText('Auto-saved', { exact: true })).toBeVisible({ timeout: 10_000 })
 
-  const paymentCard = page.locator('div.rounded-card', {
-    has: page.getByRole('heading', { name: 'Payment details' }),
-  })
-  await paymentCard.getByLabel('Account name').fill('LIM KAI XIN')
-  await paymentCard.getByLabel('ID number (optional)').fill('000000-00-0000')
-  await paymentCard.getByLabel('Bank').fill('Public Bank')
-  await paymentCard.getByLabel('Account no.').fill('1234567890')
-  await paymentCard.getByRole('button', { name: 'Save changes' }).click()
-  await expect(page.getByText('Payment details saved')).toBeVisible()
-
-  // New invoice, filled in like the paper one.
-  await page.getByRole('button', { name: 'New invoice' }).first().click()
+  // New invoice, filled in like the paper one (a one-off client, typed in).
+  await page
+    .getByRole('button', { name: /^(New invoice|Create)$/ })
+    .first()
+    .click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Create invoice' }).click()
   await expect(page).toHaveURL(/\/invoices\//)
   await expect(page.getByRole('heading', { name: '2026001', level: 1 })).toBeVisible()
 
-  await page.getByLabel('Name', { exact: true }).fill('Astro Radio Sdn Bhd')
-  await page
+  // It opens as the real invoice; Edit makes each part of it clickable.
+  const preview = page.getByRole('region', { name: 'Preview' })
+  await expect(preview.getByRole('button')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Edit', exact: true }).click()
+  await preview.getByRole('button', { name: "Edit who it's billed to" }).click()
+  let dialog = page.getByRole('dialog', { name: 'Bill to' })
+  await dialog.getByLabel('Name', { exact: true }).fill('Astro Radio Sdn Bhd')
+  await dialog
     .getByLabel('Address')
-    .first()
     .fill(
       'All Asia Broadcast Centre\nTechnology Park Malaysia\nLebuhraya Puchong-Sg Besi, Bukit Jalil\n57000 Kuala Lumpur',
     )
-  await page.getByLabel('Attention (optional)').fill('Accounts Payable Department')
-  await page.getByPlaceholder(/What is it for/).fill('FULL TIME ANNOUNCER OCT 2026\n(20 days)')
-  await page.getByText('Rename columns').click()
-  await page.getByLabel('Rate column heading').fill('Rate Per Session / Hour*')
-  await page.getByLabel('Quantity column heading').fill('Quantity (session)')
-  await page.getByLabel(/^Rate Per Session/).fill('250')
-  await page.getByLabel('Quantity (session)', { exact: true }).fill('20')
-  await page
+  await dialog.getByLabel('Attention (optional)').fill('Accounts Payable Department')
+  await dialog.getByRole('button', { name: 'Done' }).click()
+
+  await preview.getByRole('button', { name: '+ Add item' }).click()
+  dialog = page.getByRole('dialog', { name: 'Item 1' })
+  await dialog.getByLabel('Item 1 Description').fill('FULL TIME ANNOUNCER OCT 2026\n(20 days)')
+  await dialog.getByLabel(/^Rate Per Session/).fill('250')
+  await dialog.getByLabel('Quantity (session)', { exact: true }).fill('20')
+  await dialog.getByRole('button', { name: 'Done' }).click()
+
+  await preview.getByRole('button', { name: '+ Add notes' }).click()
+  dialog = page.getByRole('dialog', { name: 'Notes' })
+  await dialog
     .getByLabel('Notes')
     .fill('*whichever applicable\nStation name: GOXUAN\n\nVendor code: 1029934')
+  await dialog.getByRole('button', { name: 'Done' }).click()
 
-  const preview = page.getByRole('region', { name: 'Preview' })
   await expect(preview.getByText('5,000.00').first()).toBeVisible()
   await expect(preview.getByText('Bank Account: 1234567890')).toBeVisible()
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10_000 })
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
   await preview.screenshot({ path: 'test-results/blush-preview.png' })
 
   // Save as PDF: render the print view and produce a real PDF.
@@ -83,12 +86,14 @@ test('sign up → invoice → PDF → paid → next month', async ({ page }) => 
 
   // Survives a reload (saved on the server, not just in the page).
   await page.reload()
-  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Astro Radio Sdn Bhd')
+  await expect(
+    page.getByRole('region', { name: 'Preview' }).getByText('Astro Radio Sdn Bhd'),
+  ).toBeVisible({ timeout: 15_000 })
 
   // Back on the list: unpaid, then paid.
   await page.getByRole('link', { name: 'Invoices' }).first().click()
-  const row = page.getByRole('row', { name: /2026001/ })
-  await expect(row.getByText('RM 5,000.00')).toBeVisible()
+  const row = page.getByRole('article', { name: '2026001' })
+  await expect(row).toContainText('RM 5,000.00')
   await expect(row.getByText('Unpaid')).toBeVisible()
   await row.getByRole('button', { name: 'Actions for 2026001' }).click()
   await page.getByRole('menuitem', { name: 'Mark as paid' }).click()
@@ -99,25 +104,26 @@ test('sign up → invoice → PDF → paid → next month', async ({ page }) => 
   await row.getByRole('button', { name: 'Actions for 2026001' }).click()
   await page.getByRole('menuitem', { name: 'Duplicate for next month' }).click()
   await expect(page.getByRole('heading', { name: '2026002', level: 1 })).toBeVisible()
-  await expect(page.getByPlaceholder(/What is it for/)).toHaveValue(
-    'FULL TIME ANNOUNCER NOV 2026\n(20 days)',
-  )
+  await expect(
+    page.getByRole('region', { name: 'Preview' }).getByRole('cell', { name: /ANNOUNCER NOV 2026/ }),
+  ).toBeVisible()
   await expect(page.getByText('Unpaid')).toBeVisible()
 
   // Log out and back in: same data.
-  await page.getByRole('button', { name: 'Account' }).click()
-  await page.getByRole('menuitem', { name: 'Log out' }).click()
+  await page.getByRole('link', { name: 'Account', exact: true }).click()
+  await page.getByRole('button', { name: 'Log out', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Log in' })).toBeVisible()
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Log in' }).click()
-  // Back where we were, with everything still there.
-  await expect(page.getByRole('heading', { name: '2026002', level: 1 })).toBeVisible({
+  // Back where we were (Account), with everything still there.
+  await expect(page.getByRole('heading', { name: 'Account', level: 1 })).toBeVisible({
     timeout: 20_000,
   })
   await page.getByRole('link', { name: 'Invoices' }).first().click()
+  await expect(page.getByRole('article', { name: '2026002' })).toBeVisible()
   await expect(
-    page.getByRole('row', { name: /2026001/ }).getByText('Paid', { exact: true }),
+    page.getByRole('article', { name: '2026001' }).getByText('Paid', { exact: true }),
   ).toBeVisible()
 })
 
@@ -125,8 +131,7 @@ test('one account never sees another account’s invoices', async ({ browser }) 
   test.setTimeout(90_000)
   const alice = await browser.newPage()
   await signUp(alice, uniqueEmail('alice'))
-  await alice.getByRole('button', { name: 'New invoice' }).first().click()
-  await expect(alice).toHaveURL(/\/invoices\//)
+  await firstInvoice(alice)
   const aliceUrl = alice.url()
 
   const bob = await (await browser.newContext()).newPage()

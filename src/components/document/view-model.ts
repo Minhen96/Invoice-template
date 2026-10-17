@@ -6,12 +6,19 @@ import type { InvoiceContent } from '@convex/lib/validators'
 /** What a template needs to draw an invoice: the content plus its payment state. */
 export type DocumentInvoice = InvoiceContent & { status: 'paid' | 'unpaid'; paidAt: string }
 
+/** desc = the wide wrapping description; text = an extra column; num = centred figures. */
+export type ColumnKind = 'desc' | 'text' | 'num'
+
+export interface DocumentColumn {
+  key: string
+  label: string
+  kind: ColumnKind
+}
+
 export interface DocumentRow {
   id: string
-  description: string
-  rate: string
-  quantity: string
-  amount: string
+  /** One cell per column, in column order. */
+  cells: string[]
 }
 
 export interface DocumentView {
@@ -21,7 +28,7 @@ export interface DocumentView {
   issueDate: string
   dueDate: string
   billTo: InvoiceContent['billTo']
-  labels: InvoiceContent['labels']
+  columns: DocumentColumn[]
   rows: DocumentRow[]
   subtotal: string
   discount: string | null
@@ -57,14 +64,35 @@ export function buildDocumentView(invoice: DocumentInvoice, logoUrl: string | nu
   const totals = computeTotals(invoice)
   const currency = invoice.currency.trim()
   const withCurrency = (label: string) => (currency ? `${label} (${currency})` : label)
+  const spec = invoice.columns
+  const columns: DocumentColumn[] = [
+    { key: 'description', label: spec.description, kind: 'desc' },
+    ...spec.extra.map((c) => ({ key: `extra:${c.id}`, label: c.label, kind: 'text' as const })),
+    ...(spec.showRateQty
+      ? [
+          { key: 'rate', label: withCurrency(spec.rate), kind: 'num' as const },
+          { key: 'quantity', label: spec.quantity, kind: 'num' as const },
+        ]
+      : []),
+    { key: 'amount', label: withCurrency(spec.amount), kind: 'num' },
+  ]
   const rows = invoice.items
-    .filter((item) => item.description.trim() !== '' || item.rateSen > 0)
+    .filter(
+      (item) =>
+        item.description.trim() !== '' ||
+        item.rateSen > 0 ||
+        Object.values(item.extra).some((value) => value.trim() !== ''),
+    )
     .map((item) => ({
       id: item.id,
-      description: item.description,
-      rate: item.rateSen > 0 ? formatSen(item.rateSen) : '',
-      quantity: formatQuantity(item.quantity),
-      amount: formatSen(lineAmountSen(item)),
+      cells: [
+        item.description,
+        ...spec.extra.map((c) => item.extra[c.id] ?? ''),
+        ...(spec.showRateQty
+          ? [item.rateSen > 0 ? formatSen(item.rateSen) : '', formatQuantity(item.quantity)]
+          : []),
+        formatSen(lineAmountSen(item)),
+      ],
     }))
 
   const { payment } = invoice
@@ -83,12 +111,7 @@ export function buildDocumentView(invoice: DocumentInvoice, logoUrl: string | nu
     issueDate: formatDate(invoice.issueDate, invoice.dateFormat),
     dueDate: invoice.dueDate ? formatDate(invoice.dueDate, invoice.dateFormat) : '',
     billTo: invoice.billTo,
-    labels: {
-      description: invoice.labels.description,
-      rate: withCurrency(invoice.labels.rate),
-      quantity: invoice.labels.quantity,
-      amount: withCurrency(invoice.labels.amount),
-    },
+    columns,
     rows,
     subtotal: formatSen(totals.subtotalSen),
     discount: totals.discountSen > 0 ? formatSen(totals.discountSen) : null,

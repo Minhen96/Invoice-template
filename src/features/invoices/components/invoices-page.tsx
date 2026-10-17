@@ -2,17 +2,18 @@ import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
-import { ArrowRight, FileText, Plus, Search } from 'lucide-react'
+import { ArrowRight, FileText, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { MarkPaidDialog } from '@/components/shared/mark-paid-dialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { inputClass } from '@/components/ui/field'
+import { SearchField } from '@/components/ui/search-field'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCreateInvoice } from '@/hooks/use-create-invoice'
+import { useNewInvoice } from '@/hooks/new-invoice-context'
 import { useDeleteWithUndo, useInvoiceActions } from '@/hooks/use-invoice-actions'
 import { cn } from '@/lib/cn'
+import { pickRow } from '@/lib/parties'
 import { today as todayIso } from '@/lib/today'
 
 import {
@@ -30,7 +31,6 @@ import { InvoiceList } from './invoice-list'
 const FILTER_LABELS: Record<StatusFilter, string> = {
   all: 'All',
   unpaid: 'Unpaid',
-  overdue: 'Overdue',
   paid: 'Paid',
 }
 
@@ -42,9 +42,10 @@ interface InvoicesPageProps {
 
 export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
   const rows = useQuery(api.invoices.list)
-  const profile = useQuery(api.profiles.get)
+  const templates = useQuery(api.templates.list)
+  const businesses = useQuery(api.businesses.list)
   const navigate = useNavigate()
-  const { createInvoice, creating } = useCreateInvoice()
+  const newInvoice = useNewInvoice()
   const { duplicate, markUnpaid, print } = useInvoiceActions()
   const { hidden, deleteInvoice } = useDeleteWithUndo()
   const [paying, setPaying] = useState<InvoiceRow | null>(null)
@@ -55,14 +56,21 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
     [rows, hidden],
   )
   const summary = useMemo(() => summarise(visibleRows, today), [visibleRows, today])
-  const counts = useMemo(() => countByFilter(visibleRows, today), [visibleRows, today])
+  const counts = useMemo(() => countByFilter(visibleRows), [visibleRows])
   const filtered = useMemo(
-    () => filterInvoices(visibleRows, { status, q }, today),
-    [visibleRows, status, q, today],
+    () => filterInvoices(visibleRows, { status, q }),
+    [visibleRows, status, q],
   )
-  const currency = profile?.defaults.currency ?? 'RM'
+  // The most common currency first in the totals (from the first template, else RM).
+  const currency = templates?.[0]?.currency ?? 'RM'
   // null = never saved; undefined = still loading (don't flash the nudge).
-  const needsSetup = profile === null || profile?.business.name === ''
+  // First-run guidance, one step at a time: business details, then a template.
+  const setup =
+    businesses?.length === 0 || (businesses !== undefined && pickRow(businesses)?.name === '')
+      ? 'business'
+      : templates?.length === 0
+        ? 'template'
+        : null
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,45 +83,54 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
         </div>
       </div>
 
-      {needsSetup ? (
+      {setup ? (
         <Card className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="m-0 font-medium">Add your details once</p>
+            <p className="m-0 font-medium">
+              {setup === 'business' ? 'Add your business details' : 'Set up your invoice template'}
+            </p>
             <p className="m-0 mt-0.5 text-sm text-muted">
-              Your business and bank details will fill in every new invoice automatically.
+              {setup === 'business'
+                ? 'Your business and bank details go on every invoice — fill them in once.'
+                : 'Choose the look and columns once — every invoice reuses them.'}
             </p>
           </div>
           <Link
-            to="/settings"
+            to={setup === 'business' ? '/account' : '/templates'}
             className="inline-flex h-11 items-center gap-1.5 self-start rounded-[10px] border border-line px-4 text-sm font-medium hover:bg-raised sm:h-9 sm:self-auto"
           >
-            Open settings <ArrowRight aria-hidden="true" className="size-4" />
+            {setup === 'business' ? 'Open account' : 'Set up template'}{' '}
+            <ArrowRight aria-hidden="true" className="size-4" />
           </Link>
         </Card>
       ) : null}
 
-      <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat
+          className="max-sm:col-span-2"
           label="Outstanding"
           value={rows === undefined ? null : formatAmounts(summary.outstanding, currency)}
           note={`${String(summary.outstandingCount)} unpaid`}
-        />
-        <Stat
-          label="Overdue"
-          value={rows === undefined ? null : formatAmounts(summary.overdue, currency)}
-          note={`${String(summary.overdueCount)} past due`}
-          tone={summary.overdueCount > 0 ? 'overdue' : undefined}
         />
         <Stat
           label={`Paid in ${today.slice(0, 4)}`}
           value={rows === undefined ? null : formatAmounts(summary.paidThisYear, currency)}
           note="Money received"
         />
-        <Stat
-          label={`Invoiced in ${today.slice(0, 4)}`}
-          value={rows === undefined ? null : formatAmounts(summary.invoicedThisYear, currency)}
-          note="Total billed"
-        />
+        {/* A box the size of the figures beside it: the main thing to do here. */}
+        <button
+          type="button"
+          onClick={() => newInvoice()}
+          className="flex flex-col items-start justify-between gap-3 rounded-card bg-ink p-4 text-left text-onink shadow-card transition-colors hover:bg-ink/88 sm:p-5"
+        >
+          <span className="flex size-9 items-center justify-center rounded-full bg-onink/15">
+            <Plus aria-hidden="true" className="size-5" />
+          </span>
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[15px] font-semibold sm:text-base">Create invoice</span>
+            <span className="text-[12.5px] text-onink/75">Takes a minute</span>
+          </span>
+        </button>
       </section>
 
       <Card className="overflow-hidden">
@@ -136,20 +153,14 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
               </button>
             ))}
           </div>
-          <label className="relative block sm:w-64">
-            <span className="sr-only">Search invoices</span>
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-            />
-            <input
-              type="search"
-              value={q}
-              placeholder="Search number, client, amount"
-              onChange={(e) => onSearchChange({ q: e.target.value })}
-              className={cn(inputClass, 'h-11 pl-9 sm:h-9 sm:text-sm')}
-            />
-          </label>
+          <SearchField
+            label="Search invoices"
+            value={q}
+            placeholder="Search name, number, client, amount"
+            onChange={(next) => {
+              onSearchChange({ q: next })
+            }}
+          />
         </div>
 
         {rows === undefined ? (
@@ -165,8 +176,8 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
                 Create your first one — it takes a minute.
               </p>
             </div>
-            <Button loading={creating} onClick={() => void createInvoice()} className="mt-2">
-              {creating ? null : <Plus />}
+            <Button onClick={() => newInvoice()} className="mt-2">
+              <Plus />
               New invoice
             </Button>
           </div>
@@ -175,7 +186,6 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
         ) : (
           <InvoiceList
             rows={filtered}
-            today={today}
             onOpen={(id) => void navigate({ to: '/invoices/$id', params: { id } })}
             onMarkPaid={setPaying}
             onMarkUnpaid={(id) => void markUnpaid(id)}
@@ -203,27 +213,20 @@ function Stat({
   label,
   value,
   note,
-  tone,
+  className,
 }: {
   label: string
   value: string | null
   note: string
-  tone?: 'overdue' | undefined
+  className?: string
 }) {
   return (
-    <Card className="flex flex-col gap-1 p-4 sm:p-5">
+    <Card className={cn('flex flex-col gap-1 p-4 sm:p-5', className)}>
       <span className="text-[13px] font-medium text-muted">{label}</span>
       {value === null ? (
         <Skeleton className="my-1 h-7 w-28" />
       ) : (
-        <span
-          className={cn(
-            'text-lg font-semibold tracking-tight tabular sm:text-[22px]',
-            tone === 'overdue' && 'text-overdue',
-          )}
-        >
-          {value}
-        </span>
+        <span className="text-lg font-semibold tracking-tight tabular sm:text-[22px]">{value}</span>
       )}
       <span className="text-[12.5px] text-muted">{note}</span>
     </Card>
@@ -232,9 +235,13 @@ function Stat({
 
 function ListSkeleton() {
   return (
-    <div role="status" aria-label="Loading invoices" className="flex flex-col gap-3 p-5">
-      {[0, 1, 2, 3].map((i) => (
-        <Skeleton key={i} className="h-10 w-full" />
+    <div
+      role="status"
+      aria-label="Loading invoices"
+      className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3"
+    >
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} className="h-60 w-full" />
       ))}
     </div>
   )

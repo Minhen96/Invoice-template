@@ -17,10 +17,27 @@ interface SectionCardProps {
   action?: ReactNode
   children: ReactNode
   className?: string
+  /** Just the contents (and action), no card or title — for reusing a section inside a popup. */
+  bare?: boolean
 }
 
 /** A titled card, used for form sections (Settings, editor). */
-export function SectionCard({ title, description, action, children, className }: SectionCardProps) {
+export function SectionCard({
+  title,
+  description,
+  action,
+  children,
+  className,
+  bare = false,
+}: SectionCardProps) {
+  if (bare) {
+    return (
+      <div className={cn('flex flex-col gap-4', className)}>
+        {action ? <div className="flex justify-end">{action}</div> : null}
+        <div>{children}</div>
+      </div>
+    )
+  }
   return (
     <Card className={cn('p-5 sm:p-6', className)}>
       <div className="mb-4 flex items-start justify-between gap-4">

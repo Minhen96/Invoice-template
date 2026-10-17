@@ -1,5 +1,5 @@
 import type { Doc, Id } from '@convex/_generated/dataModel'
-import { DEFAULT_LABELS, DEFAULT_PROFILE_DEFAULTS } from '@convex/lib/defaults'
+import { DEFAULT_COLUMNS, DEFAULT_TEMPLATE } from '@convex/lib/defaults'
 
 /** Test data modelled on the real pink invoice (personal details replaced). */
 
@@ -22,14 +22,19 @@ export const payment = {
   extra: '',
 }
 
-export function invoiceDoc(partial: Partial<Doc<'invoices'>> = {}): Doc<'invoices'> {
+export function invoiceDoc(
+  partial: Partial<Doc<'invoices'> & { logoUrl: string | null }> = {},
+): Doc<'invoices'> & { logoUrl: string | null } {
   return {
     _id: 'inv1' as Id<'invoices'>,
     _creationTime: 0,
     userId: 'user1' as Id<'users'>,
     number: '2026031',
     title: 'INVOICE',
-    template: 'blush',
+    layout: 'blush',
+    templateId: 'tpl1' as Id<'templates'>,
+    logoId: undefined,
+    logoUrl: null,
     accent: '#c2185b',
     currency: 'RM',
     dateFormat: 'd/m/yyyy',
@@ -41,13 +46,18 @@ export function invoiceDoc(partial: Partial<Doc<'invoices'>> = {}): Doc<'invoice
       address: 'All Asia Broadcast Centre\nTechnology Park Malaysia\n57000 Kuala Lumpur',
       attention: 'Accounts Payable Department',
     },
-    labels: { ...DEFAULT_LABELS, rate: 'Rate Per Session / Hour*', quantity: 'Quantity (session)' },
+    columns: {
+      ...DEFAULT_COLUMNS,
+      rate: 'Rate Per Session / Hour*',
+      quantity: 'Quantity (session)',
+    },
     items: [
       {
         id: 'a',
         description: 'FULL TIME ANNOUNCER OCT 2026\n(20 days)',
         rateSen: 25000,
         quantity: 20,
+        extra: {},
       },
     ],
     discountSen: 0,
@@ -67,32 +77,76 @@ export function invoiceDoc(partial: Partial<Doc<'invoices'>> = {}): Doc<'invoice
 
 export function profileResult(partial: Record<string, unknown> = {}) {
   return {
-    business,
-    payment,
-    defaults: DEFAULT_PROFILE_DEFAULTS,
     nextNumber: '2026032',
+    lastTemplateId: 'tpl1',
+    lastClientId: null,
+    ...partial,
+  }
+}
+
+export function businessDoc(partial: Partial<Doc<'businesses'>> = {}): Doc<'businesses'> {
+  return {
+    _id: 'biz1' as Id<'businesses'>,
+    _creationTime: 0,
+    userId: 'user1' as Id<'users'>,
+    ...business,
+    isDefault: true,
+    ...partial,
+  }
+}
+
+export function bankDoc(partial: Partial<Doc<'bankAccounts'>> = {}): Doc<'bankAccounts'> {
+  return {
+    _id: 'bank1' as Id<'bankAccounts'>,
+    _creationTime: 0,
+    userId: 'user1' as Id<'users'>,
+    ...payment,
+    isDefault: true,
+    ...partial,
+  }
+}
+
+export function templateDoc(
+  partial: Partial<Doc<'templates'> & { logoUrl: string | null }> = {},
+): Doc<'templates'> & { logoUrl: string | null } {
+  return {
+    _id: 'tpl1' as Id<'templates'>,
+    _creationTime: 0,
+    userId: 'user1' as Id<'users'>,
+    ...DEFAULT_TEMPLATE,
+    name: 'Astro announcer',
+    columns: {
+      ...DEFAULT_COLUMNS,
+      rate: 'Rate Per Session / Hour*',
+      quantity: 'Quantity (session)',
+    },
+    logoId: undefined,
     logoUrl: null,
     ...partial,
   }
 }
 
-export function listRow(partial: Partial<ReturnType<typeof rowFrom>> = {}) {
-  return { ...rowFrom(invoiceDoc()), ...partial }
+export function itemDoc(partial: Partial<Doc<'items'>> = {}): Doc<'items'> {
+  return {
+    _id: 'item1' as Id<'items'>,
+    _creationTime: 0,
+    userId: 'user1' as Id<'users'>,
+    key: 'full time announcer (20 days)',
+    description: 'FULL TIME ANNOUNCER (20 days)',
+    rateSen: 25000,
+    quantity: 20,
+    useCount: 3,
+    lastUsedAt: 0,
+    ...partial,
+  }
 }
 
-function rowFrom(doc: Doc<'invoices'>) {
-  return {
-    _id: doc._id,
-    _creationTime: doc._creationTime,
-    number: doc.number,
-    title: doc.title,
-    clientId: doc.clientId,
-    clientName: doc.billTo.name,
-    issueDate: doc.issueDate,
-    dueDate: doc.dueDate,
-    currency: doc.currency,
-    totalSen: doc.totalSen,
-    status: doc.status,
-    paidAt: doc.paidAt,
-  }
+/** One row of `invoices.list`: the whole invoice (for its preview), name and client name. */
+export function listRow(partial: Partial<ReturnType<typeof rowFrom>> = {}) {
+  return { ...rowFrom(invoiceDoc(partial)), ...partial }
+}
+
+function rowFrom(doc: Doc<'invoices'> & { logoUrl: string | null }) {
+  const { userId: _owner, ...row } = doc
+  return { ...row, name: doc.name ?? '', clientName: doc.billTo.name }
 }

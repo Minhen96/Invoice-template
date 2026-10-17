@@ -28,14 +28,11 @@ const rows = [
 ]
 
 describe('summarise', () => {
-  it('adds up outstanding, overdue and this year, per currency', () => {
+  it('adds up outstanding and this year, per currency', () => {
     expect(summarise(rows, TODAY)).toEqual({
       outstanding: { RM: 150000, USD: 1500 },
       outstandingCount: 3,
-      overdue: { RM: 50000 },
-      overdueCount: 1,
       paidThisYear: { RM: 20000 },
-      invoicedThisYear: { RM: 170000, USD: 1500 },
     })
   })
 
@@ -55,13 +52,12 @@ describe('formatAmounts', () => {
 })
 
 describe('filterInvoices', () => {
-  const ids = (status: 'all' | 'unpaid' | 'overdue' | 'paid', q = '') =>
-    filterInvoices(rows, { status, q }, TODAY).map((r) => r._id)
+  const ids = (status: 'all' | 'unpaid' | 'paid', q = '') =>
+    filterInvoices(rows, { status, q }).map((r) => r._id)
 
-  it('filters by status; unpaid includes overdue', () => {
+  it('filters by status (past the due date is still just unpaid)', () => {
     expect(ids('all')).toHaveLength(5)
     expect(ids('unpaid')).toEqual(['open', 'late', 'usd'])
-    expect(ids('overdue')).toEqual(['late'])
     expect(ids('paid')).toEqual(['paid', 'old-paid'])
   })
 
@@ -75,6 +71,6 @@ describe('filterInvoices', () => {
 
 describe('countByFilter', () => {
   it('counts each tab', () => {
-    expect(countByFilter(rows, TODAY)).toEqual({ all: 5, unpaid: 3, overdue: 1, paid: 2 })
+    expect(countByFilter(rows)).toEqual({ all: 5, unpaid: 3, paid: 2 })
   })
 })

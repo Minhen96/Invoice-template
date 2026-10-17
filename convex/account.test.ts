@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api, internal } from './_generated/api'
 import { generateCode, ResetPasswordCode } from './otp'
-import { signedInUser, setupBackend, TODAY } from './test.helpers'
+import { createTemplate, signedInUser, setupBackend, TODAY } from './test.helpers'
 
 describe('account.viewer', () => {
   it('describes the signed-in person and whether they use a password', async () => {
@@ -56,13 +56,20 @@ describe('backup.exportData', () => {
       email: '',
       notes: '',
     })
-    await as.mutation(api.invoices.create, { today: TODAY })
+    const templateId = await createTemplate(as, { name: 'Announcer' })
+    const invoiceId = await as.mutation(api.invoices.create, { today: TODAY, templateId })
+    await as.mutation(api.items.rememberFromInvoice, { invoiceId })
     const other = await signedInUser(t, 'other@example.com')
-    await other.as.mutation(api.invoices.create, { today: TODAY })
+    await other.as.mutation(api.invoices.create, {
+      today: TODAY,
+      templateId: await createTemplate(other.as),
+    })
 
     const data = await as.query(api.backup.exportData, {})
-    expect(data.version).toBe(1)
-    expect(data.profile?.nextNumber).toBe('2026002')
+    expect(data.version).toBe(4)
+    expect(data.nextNumber).toBe('2026002')
+    expect(data.templates.map((x) => x.name)).toEqual(['Announcer'])
+    expect(data.items).toEqual([])
     expect(data.clients).toEqual([
       { name: 'Acme', address: '', attention: '', email: '', notes: '' },
     ])

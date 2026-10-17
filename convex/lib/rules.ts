@@ -1,14 +1,15 @@
 import { ConvexError } from 'convex/values'
 
 import { isIsoDate } from './dates'
+import { MAX_EXTRA_COLUMNS } from './defaults'
 import { MAX_SEN } from './money'
 import type {
   Business,
   ClientFields,
   InvoiceContent,
-  Labels,
+  Columns,
   Payment,
-  ProfileDefaults,
+  TemplateFields,
 } from './validators'
 
 /**
@@ -17,7 +18,13 @@ import type {
  */
 
 export type AppErrorCode =
-  'unauthorized' | 'not_found' | 'invalid' | 'number_taken' | 'weak_password' | 'wrong_password'
+  | 'unauthorized'
+  | 'not_found'
+  | 'invalid'
+  | 'number_taken'
+  | 'duplicate'
+  | 'weak_password'
+  | 'wrong_password'
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- a type alias (not an interface) satisfies Convex's `Value` constraint
 export type AppErrorData = {
@@ -62,26 +69,46 @@ export function checkPayment(value: Payment, prefix = 'payment'): void {
   texts(value, prefix, ['extra'])
 }
 
-export function checkLabels(value: Labels, prefix = 'labels'): void {
-  texts(value, prefix)
+const COLUMN_ID_RE = /^[a-z0-9]{1,40}$/i
+
+export function checkColumns(value: Columns, prefix = 'columns'): void {
+  const { showRateQty: _show, extra, ...headings } = value
+  texts(headings, prefix)
+  if (extra.length > MAX_EXTRA_COLUMNS) throw appError('invalid', `${prefix}.extra`)
+  const ids = new Set<string>()
+  extra.forEach((column, i) => {
+    if (!COLUMN_ID_RE.test(column.id) || ids.has(column.id)) {
+      throw appError('invalid', `${prefix}.extra.${i}.id`)
+    }
+    ids.add(column.id)
+    text(column.label, `${prefix}.extra.${i}.label`, 60)
+  })
 }
 
 export function checkAccent(value: string, field = 'accent'): void {
   if (!HEX_RE.test(value)) throw appError('invalid', field)
 }
 
-export function checkDefaults(value: ProfileDefaults): void {
-  text(value.title, 'defaults.title')
-  text(value.currency, 'defaults.currency', 10)
-  text(value.notes, 'defaults.notes', LIMITS.long)
-  checkAccent(value.accent, 'defaults.accent')
-  checkLabels(value.labels, 'defaults.labels')
-  if (
-    value.dueDays !== null &&
-    (!Number.isInteger(value.dueDays) || value.dueDays < 0 || value.dueDays > LIMITS.dueDays)
-  ) {
-    throw appError('invalid', 'defaults.dueDays')
-  }
+export function checkDueDays(value: number | null, field = 'dueDays'): void {
+  if (value === null) return
+  if (!Number.isInteger(value) || value < 0 || value > LIMITS.dueDays)
+    throw appError('invalid', field)
+}
+
+export function checkTemplate(value: TemplateFields): void {
+  if (value.name.trim() === '' || value.name.length > 60) throw appError('invalid', 'name')
+  text(value.title, 'title')
+  text(value.currency, 'currency', 10)
+  text(value.notes, 'notes', LIMITS.long)
+  checkAccent(value.accent)
+  checkColumns(value.columns)
+  checkDueDays(value.dueDays)
+}
+
+export function checkItemFields(value: { description: string; rateSen: number }): void {
+  if (value.description.trim() === '') throw appError('invalid', 'description')
+  text(value.description, 'description', LIMITS.long)
+  sen(value.rateSen, 'rateSen')
 }
 
 export function checkNumber(value: string, field = 'number'): void {
@@ -97,6 +124,7 @@ export function checkClient(value: ClientFields): void {
 }
 
 export function checkInvoice(value: InvoiceContent): void {
+  text(value.name ?? '', 'name')
   checkNumber(value.number)
   text(value.title, 'title')
   text(value.currency, 'currency', 10)
@@ -106,7 +134,7 @@ export function checkInvoice(value: InvoiceContent): void {
   if (!isIsoDate(value.issueDate)) throw appError('invalid', 'issueDate')
   if (value.dueDate !== '' && !isIsoDate(value.dueDate)) throw appError('invalid', 'dueDate')
   texts(value.billTo, 'billTo', ['address'])
-  checkLabels(value.labels)
+  checkColumns(value.columns)
   checkBusiness(value.from)
   checkPayment(value.payment)
   sen(value.discountSen, 'discountSen')
@@ -120,6 +148,13 @@ export function checkInvoice(value: InvoiceContent): void {
     sen(item.rateSen, `items.${i}.rateSen`)
     if (!Number.isFinite(item.quantity) || item.quantity < 0 || item.quantity > LIMITS.quantity) {
       throw appError('invalid', `items.${i}.quantity`)
+    }
+    const keys = Object.keys(item.extra)
+    if (keys.length > MAX_EXTRA_COLUMNS || keys.some((key) => !COLUMN_ID_RE.test(key))) {
+      throw appError('invalid', `items.${i}.extra`)
+    }
+    for (const [key, cell] of Object.entries(item.extra)) {
+      text(cell, `items.${i}.extra.${key}`, 500)
     }
   })
 }

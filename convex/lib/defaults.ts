@@ -1,6 +1,6 @@
-import type { Business, Labels, Payment, ProfileDefaults, TemplateId } from './validators'
+import type { Business, Columns, LayoutId, Payment, TemplateFields } from './validators'
 
-export const TEMPLATES: readonly { id: TemplateId; name: string }[] = [
+export const LAYOUTS: readonly { id: LayoutId; name: string }[] = [
   { id: 'blush', name: 'Blush' },
   { id: 'classic', name: 'Classic' },
   { id: 'minimal', name: 'Minimal' },
@@ -17,11 +17,15 @@ export const ACCENTS: readonly { value: string; name: string }[] = [
   { value: '#18181b', name: 'Ink' },
 ]
 
-export const DEFAULT_LABELS: Labels = {
+export const MAX_EXTRA_COLUMNS = 3
+
+export const DEFAULT_COLUMNS: Columns = {
   description: 'Description',
   rate: 'Rate',
   quantity: 'Quantity',
   amount: 'Total',
+  showRateQty: true,
+  extra: [],
 }
 
 export const EMPTY_BUSINESS: Business = { name: '', regNo: '', address: '', email: '', phone: '' }
@@ -35,13 +39,15 @@ export const EMPTY_PAYMENT: Payment = {
   extra: '',
 }
 
-export const DEFAULT_PROFILE_DEFAULTS: ProfileDefaults = {
+/** Starting point for a new template. */
+export const DEFAULT_TEMPLATE: TemplateFields = {
+  name: 'My template',
+  layout: 'blush',
+  accent: '#c2185b',
   title: 'INVOICE',
   currency: 'RM',
   dateFormat: 'd/m/yyyy',
   dueDays: 30,
-  template: 'blush',
-  accent: '#c2185b',
+  columns: DEFAULT_COLUMNS,
   notes: '',
-  labels: DEFAULT_LABELS,
 }

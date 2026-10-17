@@ -12,12 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as GuestRouteImport } from './routes/_guest'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppClientsRouteImport } from './routes/_app/clients'
+import { Route as AppItemsRouteImport } from './routes/_app/items'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as GuestForgotPasswordRouteImport } from './routes/_guest/forgot-password'
 import { Route as GuestLoginRouteImport } from './routes/_guest/login'
 import { Route as GuestSignupRouteImport } from './routes/_guest/signup'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
+import { Route as AppTemplatesIndexRouteImport } from './routes/_app/templates/index'
+import { Route as AppTemplatesIdRouteImport } from './routes/_app/templates/$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -32,9 +36,19 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClientsRoute = AppClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppItemsRoute = AppItemsRouteImport.update({
+  id: '/items',
+  path: '/items',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -62,67 +76,101 @@ const AppInvoicesIdRoute = AppInvoicesIdRouteImport.update({
   path: '/invoices/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTemplatesIndexRoute = AppTemplatesIndexRouteImport.update({
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesIdRoute = AppTemplatesIdRouteImport.update({
+  id: '/templates/$id',
+  path: '/templates/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/account': typeof AppAccountRoute
   '/clients': typeof AppClientsRoute
+  '/items': typeof AppItemsRoute
   '/settings': typeof AppSettingsRoute
   '/forgot-password': typeof GuestForgotPasswordRoute
   '/login': typeof GuestLoginRoute
   '/signup': typeof GuestSignupRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
+  '/templates/$id': typeof AppTemplatesIdRoute
+  '/templates/': typeof AppTemplatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
+  '/account': typeof AppAccountRoute
   '/clients': typeof AppClientsRoute
+  '/items': typeof AppItemsRoute
   '/settings': typeof AppSettingsRoute
   '/forgot-password': typeof GuestForgotPasswordRoute
   '/login': typeof GuestLoginRoute
   '/signup': typeof GuestSignupRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
+  '/templates/$id': typeof AppTemplatesIdRoute
+  '/templates': typeof AppTemplatesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_guest': typeof GuestRouteWithChildren
+  '/_app/account': typeof AppAccountRoute
   '/_app/clients': typeof AppClientsRoute
+  '/_app/items': typeof AppItemsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_guest/forgot-password': typeof GuestForgotPasswordRoute
   '/_guest/login': typeof GuestLoginRoute
   '/_guest/signup': typeof GuestSignupRoute
   '/_app/': typeof AppIndexRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
+  '/_app/templates/$id': typeof AppTemplatesIdRoute
+  '/_app/templates/': typeof AppTemplatesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/clients'
+    | '/items'
     | '/settings'
     | '/forgot-password'
     | '/login'
     | '/signup'
     | '/invoices/$id'
+    | '/templates/$id'
+    | '/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/clients'
+    | '/items'
     | '/settings'
     | '/forgot-password'
     | '/login'
     | '/signup'
     | '/invoices/$id'
+    | '/templates/$id'
+    | '/templates'
   id:
     | '__root__'
     | '/_app'
     | '/_guest'
+    | '/_app/account'
     | '/_app/clients'
+    | '/_app/items'
     | '/_app/settings'
     | '/_guest/forgot-password'
     | '/_guest/login'
     | '/_guest/signup'
     | '/_app/'
     | '/_app/invoices/$id'
+    | '/_app/templates/$id'
+    | '/_app/templates/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -153,11 +201,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/clients': {
       id: '/_app/clients'
       path: '/clients'
       fullPath: '/clients'
       preLoaderRoute: typeof AppClientsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/items': {
+      id: '/_app/items'
+      path: '/items'
+      fullPath: '/items'
+      preLoaderRoute: typeof AppItemsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -195,21 +257,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInvoicesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/templates/': {
+      id: '/_app/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof AppTemplatesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates/$id': {
+      id: '/_app/templates/$id'
+      path: '/templates/$id'
+      fullPath: '/templates/$id'
+      preLoaderRoute: typeof AppTemplatesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAccountRoute: typeof AppAccountRoute
   AppClientsRoute: typeof AppClientsRoute
+  AppItemsRoute: typeof AppItemsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
+  AppTemplatesIdRoute: typeof AppTemplatesIdRoute
+  AppTemplatesIndexRoute: typeof AppTemplatesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAccountRoute: AppAccountRoute,
   AppClientsRoute: AppClientsRoute,
+  AppItemsRoute: AppItemsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
+  AppTemplatesIdRoute: AppTemplatesIdRoute,
+  AppTemplatesIndexRoute: AppTemplatesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

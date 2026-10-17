@@ -3,13 +3,25 @@ import { waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { fakeConvex } from '@/testing/fake-convex'
-import { invoiceDoc, profileResult } from '@/testing/fixtures'
+import { invoiceDoc, templateDoc } from '@/testing/fixtures'
 import { currentPath, renderApp, screen } from '@/testing/render-app'
+
+/** The paper. Queried directly: while a popup is open the dialog hides the page from a11y queries. */
+function previewSection(): HTMLElement {
+  const section = document.querySelector<HTMLElement>('section[aria-label="Preview"]')
+  if (!section) throw new Error('preview missing')
+  return section
+}
 
 function withInvoice(partial = {}) {
   fakeConvex.setQuery(api.invoices.get, invoiceDoc(partial))
-  fakeConvex.setQuery(api.profiles.get, profileResult())
+  fakeConvex.setQuery(api.templates.list, [templateDoc()])
+  fakeConvex.setQuery(api.items.list, [])
   fakeConvex.setQuery(api.clients.list, [])
+}
+
+function paper() {
+  return within(previewSection())
 }
 
 afterEach(() => {
@@ -34,36 +46,25 @@ describe('editor actions', () => {
   it('can undo a payment', async () => {
     withInvoice({ status: 'paid', paidAt: '2026-10-20' })
     const { user } = await renderApp('/invoices/inv1')
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Mark as unpaid' }))
+    expect(screen.getByText('Paid 20 Oct 2026')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Mark as unpaid' }))
     expect(fakeConvex.handler(api.invoices.setStatus)).toHaveBeenCalledWith({
       id: 'inv1',
       status: 'unpaid',
     })
   })
 
-  it('duplicates for next month and opens the copy', async () => {
+  it('keeps the toolbar short: no "More actions" menu', async () => {
     withInvoice()
-    fakeConvex.handler(api.invoices.duplicate).mockResolvedValue('copy1')
-    const { user, router } = await renderApp('/invoices/inv1')
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Duplicate for next month' }))
-    await waitFor(() => {
-      expect(currentPath(router)).toBe('/invoices/copy1')
-    })
-    expect(fakeConvex.handler(api.invoices.duplicate)).toHaveBeenCalledWith({
-      id: 'inv1',
-      today: '2026-10-15',
-      nextMonth: true,
-    })
+    await renderApp('/invoices/inv1')
+    expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument()
   })
 
   it('deletes after confirming', async () => {
     withInvoice()
     fakeConvex.setQuery(api.invoices.list, [])
     const { user, router } = await renderApp('/invoices/inv1')
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Delete invoice' }))
     const dialog = await screen.findByRole('dialog', { name: 'Delete 2026031?' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(fakeConvex.handler(api.invoices.remove)).toHaveBeenCalledWith({ id: 'inv1' })
@@ -93,19 +94,26 @@ describe('editor actions', () => {
     root.remove()
   })
 
-  it('adds discount and tax to the total', async () => {
+  it('adds discount and tax from the totals on the paper', async () => {
     withInvoice()
     const { user } = await renderApp('/invoices/inv1')
-    await user.type(screen.getByLabelText('Discount'), '100')
-    await user.type(screen.getByLabelText('Tax %'), '8')
-    expect(screen.getByText('RM 5,292.00')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    await user.click(paper().getByRole('button', { name: 'Edit discount and tax' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Discount & tax' }))
+    await user.type(dialog.getByLabelText('Discount'), '100')
+    await user.type(dialog.getByLabelText('Tax %'), '8')
+    expect(dialog.getByText('RM 5,292.00')).toBeInTheDocument()
+    expect(paper().getByText('SST (8%)')).toBeInTheDocument()
   })
 
   it('saves a typed-in client to the client list', async () => {
     withInvoice()
     fakeConvex.handler(api.clients.create).mockResolvedValue('c9')
     const { user } = await renderApp('/invoices/inv1')
-    await user.click(screen.getByRole('button', { name: 'Save as client' }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    await user.click(paper().getByRole('button', { name: "Edit who it's billed to" }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Bill to' }))
+    await user.click(dialog.getByRole('button', { name: 'Save as client' }))
     expect(fakeConvex.handler(api.clients.create)).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Astro Radio Sdn Bhd',
@@ -114,24 +122,37 @@ describe('editor actions', () => {
     )
   })
 
-  it('edits this invoice’s own business and bank details', async () => {
+  it('edits this invoice’s own bank details from the paper', async () => {
     withInvoice()
     const { user } = await renderApp('/invoices/inv1')
-    await user.click(screen.getByText('Payment details'))
-    const bank = screen.getAllByLabelText('Bank')[0]!
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    await user.click(paper().getByRole('button', { name: 'Edit payment details' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Payment details' }))
+    const bank = dialog.getByLabelText('Bank')
     await user.clear(bank)
     await user.type(bank, 'Maybank')
-    const preview = within(screen.getByRole('region', { name: 'Preview' }))
-    expect(preview.getByText('Bank Name: Maybank')).toBeInTheDocument()
+    expect(paper().getByText('Bank Name: Maybank')).toBeInTheDocument()
+  })
+
+  it('edits this invoice’s own business details from the paper', async () => {
+    withInvoice()
+    const { user } = await renderApp('/invoices/inv1')
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    await user.click(paper().getByRole('button', { name: 'Edit your business details' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Your business' }))
+    await user.clear(dialog.getByLabelText('Business name'))
+    await user.type(dialog.getByLabelText('Business name'), 'Studio B')
+    expect(paper().getByText('Studio B')).toBeInTheDocument()
   })
 })
 
-describe('print preview on phones', () => {
-  it('switches between the form and the preview', async () => {
+describe('on phones', () => {
+  it('has big buttons for the parts you change most', async () => {
     withInvoice()
     const { user } = await renderApp('/invoices/inv1')
-    const previewTab = screen.getByRole('tab', { name: 'Preview' })
-    await user.click(previewTab)
-    expect(previewTab).toHaveAttribute('aria-selected', 'true')
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    const quick = within(screen.getByRole('group', { name: 'Quick edit' }))
+    await user.click(quick.getByRole('button', { name: 'Dates' }))
+    expect(await screen.findByRole('dialog', { name: 'Number & dates' })).toBeInTheDocument()
   })
 })

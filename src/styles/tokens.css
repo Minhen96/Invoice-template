@@ -1,6 +1,6 @@
 /*
  * Design tokens. Components use these only (through Tailwind theme colours), never raw hex.
- * Calm, paper-like neutrals; colour is reserved for meaning (paid / unpaid / overdue).
+ * Calm, paper-like neutrals; colour is reserved for meaning (paid / unpaid).
  * Every text colour meets WCAG AA 4.5:1 on --bg, --surface and its own tinted background.
  */
 :root {
@@ -20,8 +20,6 @@
   --paid-bg: #e4f4ec;
   --unpaid: #7c5200;
   --unpaid-bg: #fbf0d6;
-  --overdue: #b42318;
-  --overdue-bg: #fdeceb;
   --danger: #b42318;
   --danger-bg: #fdeceb;
 

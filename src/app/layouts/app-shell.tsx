@@ -1,24 +1,32 @@
 import { api } from '@convex/_generated/api'
-import { useAuthActions } from '@convex-dev/auth/react'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
-import { FileText, LogOut, Plus, Settings, Users } from 'lucide-react'
+import { FileText, LayoutTemplate, Package, Plus, Users } from 'lucide-react'
 
 import { Logo } from '@/components/shared/logo'
+import { NewInvoiceProvider } from '@/components/shared/new-invoice-dialog'
 import { Button } from '@/components/ui/button'
-import { Menu } from '@/components/ui/menu'
-import { useCreateInvoice } from '@/hooks/use-create-invoice'
+import { useNewInvoice } from '@/hooks/new-invoice-context'
 import { cn } from '@/lib/cn'
 
 const NAV = [
   { to: '/', label: 'Invoices', Icon: FileText, exact: true },
+  { to: '/templates', label: 'Templates', Icon: LayoutTemplate, exact: false },
   { to: '/clients', label: 'Clients', Icon: Users, exact: false },
-  { to: '/settings', label: 'Settings', Icon: Settings, exact: false },
+  { to: '/items', label: 'Items', Icon: Package, exact: false },
 ] as const
 
 /** Signed-in layout: top bar on wide screens, bottom tabs on phones (easy thumb reach). */
 export function AppShell() {
-  const { createInvoice, creating } = useCreateInvoice()
+  return (
+    <NewInvoiceProvider>
+      <Shell />
+    </NewInvoiceProvider>
+  )
+}
+
+function Shell() {
+  const newInvoice = useNewInvoice()
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -32,24 +40,25 @@ export function AppShell() {
               <Link
                 key={to}
                 to={to}
-                activeOptions={{ exact }}
-                className="flex h-9 items-center rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-sunken hover:text-text data-[status=active]:bg-sunken data-[status=active]:text-text"
+                activeOptions={{ exact, includeSearch: false }}
+                className={cn(
+                  'relative flex h-9 items-center rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-sunken hover:text-text',
+                  // Current page: darker, bold, shaded, with a bar on the header's bottom edge.
+                  'data-[status=active]:bg-sunken data-[status=active]:font-semibold data-[status=active]:text-text',
+                  "data-[status=active]:after:absolute data-[status=active]:after:inset-x-2 data-[status=active]:after:-bottom-3.5 data-[status=active]:after:h-0.5 data-[status=active]:after:rounded-full data-[status=active]:after:bg-ink data-[status=active]:after:content-['']",
+                )}
               >
                 {label}
               </Link>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              loading={creating}
-              onClick={() => void createInvoice()}
-              className="max-sm:size-11 max-sm:px-0"
-            >
-              {creating ? null : <Plus />}
-              <span className="max-sm:sr-only">New invoice</span>
+            <Button size="sm" onClick={() => newInvoice()}>
+              <Plus />
+              <span className="sm:hidden">Create</span>
+              <span className="max-sm:hidden">New invoice</span>
             </Button>
-            <AccountMenu />
+            <AccountLink />
           </div>
         </div>
       </header>
@@ -60,19 +69,22 @@ export function AppShell() {
 
       <nav
         aria-label="Main (tabs)"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
       >
         {NAV.map(({ to, label, Icon, exact }) => (
           <Link
             key={to}
             to={to}
-            activeOptions={{ exact }}
+            activeOptions={{ exact, includeSearch: false }}
             className={cn(
-              'flex h-16 flex-col items-center justify-center gap-1 text-[12px] font-medium text-muted',
-              'data-[status=active]:text-text',
+              'group flex h-16 flex-col items-center justify-center gap-1 text-[11.5px] font-medium text-muted',
+              'data-[status=active]:font-semibold data-[status=active]:text-text',
             )}
           >
-            <Icon aria-hidden="true" className="size-5" />
+            {/* Current tab: the icon sits in a dark pill. */}
+            <span className="flex h-7 w-12 items-center justify-center rounded-full transition-colors group-data-[status=active]:bg-ink group-data-[status=active]:text-onink">
+              <Icon aria-hidden="true" className="size-5" />
+            </span>
             {label}
           </Link>
         ))}
@@ -81,30 +93,21 @@ export function AppShell() {
   )
 }
 
-function AccountMenu() {
+/** Your initial; opens the Account page (business details, sign-in, log out). */
+function AccountLink() {
   const viewer = useQuery(api.account.viewer)
-  const { signOut } = useAuthActions()
   const label = [viewer?.name, viewer?.email].find((value) => value !== undefined && value !== '')
   const initial = (label ?? '?').charAt(0).toUpperCase()
 
   return (
-    <Menu
-      trigger={
-        <button
-          type="button"
-          aria-label="Account"
-          className="flex size-11 items-center justify-center rounded-full sm:size-9"
-        >
-          <span className="flex size-9 items-center justify-center rounded-full bg-ink text-sm font-semibold text-onink">
-            {initial}
-          </span>
-        </button>
-      }
-      items={[
-        { label: viewer?.email ?? 'Account', onSelect: () => undefined, disabled: true },
-        'separator',
-        { label: 'Log out', icon: <LogOut />, onSelect: () => void signOut() },
-      ]}
-    />
+    <Link
+      to="/account"
+      aria-label="Account"
+      className="group flex size-11 items-center justify-center rounded-full sm:size-9"
+    >
+      <span className="flex size-9 items-center justify-center rounded-full bg-ink text-sm font-semibold text-onink ring-offset-2 ring-offset-bg group-data-[status=active]:ring-2 group-data-[status=active]:ring-ink">
+        {initial}
+      </span>
+    </Link>
   )
 }

@@ -67,14 +67,22 @@
 .doc-table th.doc-col-desc,
 .doc-table td.doc-col-desc {
   text-align: left;
-  width: 46%;
+  width: 44%;
+}
+/* The user's own columns (Date, Venue…): left-aligned text that wraps. */
+.doc-table th.doc-col-text,
+.doc-table td.doc-col-text {
+  text-align: left;
 }
 .doc-table td {
   vertical-align: top;
 }
 .doc-table .doc-col-num {
   text-align: center;
-  width: 18%;
+  white-space: nowrap;
+}
+.doc-table th.doc-col-num {
+  white-space: normal;
 }
 
 /* Totals (shared) */
@@ -628,5 +636,96 @@
     width: 210mm;
     /* A hair under A4, so rounding never pushes a full page onto a second sheet. */
     min-height: calc(297mm - 2px);
+  }
+}
+
+/* ───────────── Editing on the paper (editor only; never printed) ───────────── */
+.doc-editable {
+  position: relative;
+}
+.doc-row {
+  position: relative;
+}
+.doc-row td:first-child {
+  position: static;
+}
+/* A real button laid over the part: faint dashed outline = "you can edit this". */
+.doc-edit-btn {
+  position: absolute;
+  inset: -6px;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 1.5px dashed rgb(36 87 214 / 0.28);
+  border-radius: 8px;
+  background: transparent;
+  color: #2457d6;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    border-color 120ms;
+}
+.doc-row .doc-edit-btn {
+  inset: 2px -6px;
+}
+.doc-edit-btn:hover,
+.doc-edit-btn:focus-visible {
+  border-color: #2457d6;
+  border-style: solid;
+  background: rgb(36 87 214 / 0.05);
+  outline: none;
+}
+.doc-edit-icon {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  width: 22px;
+  height: 22px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #2457d6;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.doc-edit-btn:hover .doc-edit-icon,
+.doc-edit-btn:focus-visible .doc-edit-icon {
+  opacity: 1;
+}
+.doc-add-row {
+  margin-top: 10px;
+}
+.doc-add-btn {
+  padding: 6px 12px;
+  border: 1.5px dashed rgb(36 87 214 / 0.45);
+  border-radius: 999px;
+  background: #fff;
+  color: #2457d6;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.doc-add-btn:hover,
+.doc-add-btn:focus-visible {
+  border-style: solid;
+  outline: none;
+}
+.doc-placeholder {
+  color: #2457d6;
+  font-style: italic;
+}
+.tpl-blush .b-details {
+  flex-shrink: 0;
+}
+.doc-totals-wrap {
+  margin-left: auto;
+}
+
+@media print {
+  .doc-edit-btn,
+  .doc-add-btn,
+  .doc-add-row {
+    display: none !important;
   }
 }
