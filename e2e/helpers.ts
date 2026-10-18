@@ -26,7 +26,8 @@ export function uniqueEmail(label: string): string {
 export async function signUp(page: Page, email: string, password = 'correct-horse-battery') {
   await page.goto('/signup')
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await page.getByLabel('Confirm password').fill(password)
   await page.getByRole('button', { name: 'Create account' }).click()
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
   await expect.poll(() => latestCode(email), { timeout: 15_000 }).toMatch(/^\d{6}$/)

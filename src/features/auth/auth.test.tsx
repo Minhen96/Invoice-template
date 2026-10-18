@@ -81,6 +81,7 @@ describe('sign up', () => {
     const { user } = await renderApp('/signup', { signedIn: false })
     await user.type(await screen.findByLabelText('Email'), ' Me@Example.com ')
     await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.type(screen.getByLabelText('Confirm password'), 'long-enough')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(fakeAuth.signIn).toHaveBeenCalledWith('password', {
@@ -95,8 +96,19 @@ describe('sign up', () => {
     const { user } = await renderApp('/signup', { signedIn: false })
     await user.type(await screen.findByLabelText('Email'), 'me@example.com')
     await user.type(screen.getByLabelText('Password'), 'short')
+    await user.type(screen.getByLabelText('Confirm password'), 'short')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(await screen.findByText('Use at least 8 characters.')).toBeInTheDocument()
+    expect(fakeAuth.signIn).not.toHaveBeenCalled()
+  })
+
+  it('asks for the same password twice', async () => {
+    const { user } = await renderApp('/signup', { signedIn: false })
+    await user.type(await screen.findByLabelText('Email'), 'me@example.com')
+    await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.type(screen.getByLabelText('Confirm password'), 'long-enougg')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(await screen.findByText("The passwords don't match.")).toBeInTheDocument()
     expect(fakeAuth.signIn).not.toHaveBeenCalled()
   })
 
@@ -105,6 +117,7 @@ describe('sign up', () => {
     const { user } = await renderApp('/signup', { signedIn: false })
     await user.type(await screen.findByLabelText('Email'), 'me@example.com')
     await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.type(screen.getByLabelText('Confirm password'), 'long-enough')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     await user.type(await screen.findByLabelText('Code'), '12')
     await user.click(screen.getByRole('button', { name: 'Continue' }))
@@ -160,6 +173,7 @@ describe('email code step', () => {
     const { user } = await renderApp('/signup', { signedIn: false })
     await user.type(await screen.findByLabelText('Email'), 'me@example.com')
     await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.type(screen.getByLabelText('Confirm password'), 'long-enough')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     await user.click(await screen.findByRole('button', { name: 'Send a new code' }))
     expect(fakeAuth.signIn).toHaveBeenLastCalledWith('password', {
@@ -175,6 +189,7 @@ describe('email code step', () => {
     const { user } = await renderApp('/signup', { signedIn: false })
     await user.type(await screen.findByLabelText('Email'), 'me@example.com')
     await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.type(screen.getByLabelText('Confirm password'), 'long-enough')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     await user.click(await screen.findByRole('button', { name: 'Use another email' }))
     expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument()
@@ -185,6 +200,7 @@ describe('email code step', () => {
     const { user } = await renderApp('/signup', { signedIn: false })
     await user.type(await screen.findByLabelText('Email'), 'me@example.com')
     await user.type(screen.getByLabelText('Password'), 'long-enough')
+    await user.type(screen.getByLabelText('Confirm password'), 'long-enough')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(await screen.findByText(/If you already have one, log in/)).toBeInTheDocument()
   })

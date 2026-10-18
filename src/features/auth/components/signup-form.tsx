@@ -18,7 +18,8 @@ import { GoogleButton } from './google-button'
 /** Create an account: email + password, then confirm the email with a 6-digit code. */
 export function SignupForm({ redirect }: { redirect?: string | undefined }) {
   const { signIn } = useAuthActions()
-  const [pending, setPending] = useState<SignupValues | null>(null)
+  // Kept after sign-up to verify the email (and resend the code).
+  const [pending, setPending] = useState<{ email: string; password: string } | null>(null)
   const {
     register,
     handleSubmit,
@@ -26,13 +27,13 @@ export function SignupForm({ redirect }: { redirect?: string | undefined }) {
     formState: { errors, isSubmitting },
   } = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: '', password: '', confirmPassword: '' },
   })
 
-  const submit = handleSubmit(async (values) => {
+  const submit = handleSubmit(async ({ email, password }) => {
     try {
-      const { signingIn } = await signIn('password', { ...values, flow: 'signUp' })
-      if (!signingIn) setPending(values)
+      const { signingIn } = await signIn('password', { email, password, flow: 'signUp' })
+      if (!signingIn) setPending({ email, password })
     } catch (error) {
       if (errorCode(error) === 'weak_password') {
         setError('password', { message: 'Use at least 8 characters.' })
@@ -62,7 +63,6 @@ export function SignupForm({ redirect }: { redirect?: string | undefined }) {
   return (
     <>
       <AuthHeading title="Create your account" subtitle="Free. Takes a minute." />
-      <GoogleButton redirectTo={safeRedirect(redirect)} />
       <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
         <Field
           label="Email"
@@ -79,10 +79,18 @@ export function SignupForm({ redirect }: { redirect?: string | undefined }) {
           error={errors.password?.message}
           {...register('password')}
         />
+        <Field
+          label="Confirm password"
+          type="password"
+          autoComplete="new-password"
+          error={errors.confirmPassword?.message}
+          {...register('confirmPassword')}
+        />
         <Button type="submit" loading={isSubmitting} className="mt-1 w-full">
           Create account
         </Button>
       </form>
+      <GoogleButton redirectTo={safeRedirect(redirect)} />
       <p className="m-0 mt-6 text-center text-sm text-muted">
         Already have an account?{' '}
         <Link

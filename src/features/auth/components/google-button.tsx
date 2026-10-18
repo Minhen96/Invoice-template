@@ -25,15 +25,15 @@ export function GoogleButton({ redirectTo }: { redirectTo: string }) {
 
   return (
     <>
-      <Button variant="secondary" className="w-full" loading={pending} onClick={() => void start()}>
-        {pending ? null : <GoogleMark />}
-        Continue with Google
-      </Button>
       <div className="my-5 flex items-center gap-3 text-[13px] text-muted">
         <span className="h-px flex-1 bg-line" />
         or
         <span className="h-px flex-1 bg-line" />
       </div>
+      <Button variant="secondary" className="w-full" loading={pending} onClick={() => void start()}>
+        {pending ? null : <GoogleMark />}
+        Continue with Google
+      </Button>
     </>
   )
 }

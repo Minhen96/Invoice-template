@@ -13,7 +13,8 @@ test('sign-up code arrives in the local Mailpit inbox', async ({ page, request }
   const email = `e2e-mailpit-${String(Date.now())}@example.com`
   await page.goto('/signup')
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill('correct-horse-battery')
+  await page.getByLabel('Password', { exact: true }).fill('correct-horse-battery')
+  await page.getByLabel('Confirm password').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Create account' }).click()
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
 

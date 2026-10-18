@@ -114,7 +114,7 @@ test('sign up → invoice → PDF → paid → next month', async ({ page }) => 
   await page.getByRole('button', { name: 'Log out', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Log in' })).toBeVisible()
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill('correct-horse-battery')
+  await page.getByLabel('Password', { exact: true }).fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Log in' }).click()
   // Back where we were (Account), with everything still there.
   await expect(page.getByRole('heading', { name: 'Account', level: 1 })).toBeVisible({

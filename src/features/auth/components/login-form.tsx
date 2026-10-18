@@ -60,7 +60,6 @@ export function LoginForm({ redirect }: { redirect?: string | undefined }) {
   return (
     <>
       <AuthHeading title="Log in" subtitle="Welcome back." />
-      <GoogleButton redirectTo={safeRedirect(redirect)} />
       <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
         <Field
           label="Email"
@@ -88,6 +87,7 @@ export function LoginForm({ redirect }: { redirect?: string | undefined }) {
           Log in
         </Button>
       </form>
+      <GoogleButton redirectTo={safeRedirect(redirect)} />
       <p className="m-0 mt-6 text-center text-sm text-muted">
         New here?{' '}
         <Link

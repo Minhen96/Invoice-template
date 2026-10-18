@@ -19,7 +19,12 @@ export const loginSchema = z.object({
 })
 export type LoginValues = z.infer<typeof loginSchema>
 
-export const signupSchema = z.object({ email, password: newPassword })
+export const signupSchema = z
+  .object({ email, password: newPassword, confirmPassword: z.string() })
+  .refine((values) => values.confirmPassword === values.password, {
+    message: "The passwords don't match.",
+    path: ['confirmPassword'],
+  })
 export type SignupValues = z.infer<typeof signupSchema>
 
 export const emailSchema = z.object({ email })
