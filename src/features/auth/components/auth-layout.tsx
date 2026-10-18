@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { LegalLinks } from '@/components/shared/legal-links'
 import { Logo } from '@/components/shared/logo'
 
 export function AuthLayout({ children }: { children: ReactNode }) {
@@ -14,6 +15,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       <p className="mt-6 max-w-[400px] text-center text-[13px] text-muted">
         Make clean invoices in minutes and always know what&apos;s been paid.
       </p>
+      <LegalLinks className="mt-2 justify-center" />
     </main>
   )
 }

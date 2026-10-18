@@ -11,6 +11,15 @@ test('signed-out visitors land on log in, and the auth pages are accessible', as
   await expectAccessible(page)
   await page.goto('/forgot-password')
   await expectAccessible(page)
+  // Privacy and terms are public (Google's sign-in setup links to them).
+  for (const [path, title] of [
+    ['/privacy', 'Privacy policy'],
+    ['/terms', 'Terms of service'],
+  ] as const) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible()
+    await expectAccessible(page)
+  }
 })
 
 test('every signed-in page is accessible', async ({ page }) => {
