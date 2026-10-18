@@ -75,16 +75,16 @@ export function PrivacyPage() {
             <strong>Correct it:</strong> edit it in the app at any time.
           </li>
           <li>
-            <strong>Delete your account and data:</strong> email us from the address on your
-            account. We delete it within 30 days.
+            <strong>Delete your account and data:</strong> Account → Delete account removes
+            everything straight away. You can also email us from the address on your account.
           </li>
         </List>
       </Section>
 
       <Section title="How long we keep it">
         <Paragraph>
-          While your account exists. After you ask us to delete it, it&apos;s removed within 30
-          days; short-lived backups may take a little longer to expire.
+          While your account exists. When you delete it, it&apos;s removed straight away (or within
+          30 days if you ask us by email); short-lived backups may take a little longer to expire.
         </Paragraph>
       </Section>
 

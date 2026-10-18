@@ -3,7 +3,7 @@ import type { Doc } from '@convex/_generated/dataModel'
 import { firstInvoiceNumber } from '@convex/lib/numbering'
 import { useAuthActions } from '@convex-dev/auth/react'
 import { useAction, useQuery } from 'convex/react'
-import { LogOut } from 'lucide-react'
+import { LogOut, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 
@@ -23,6 +23,7 @@ import { today } from '@/lib/today'
 import { missingBusiness, missingPayment, missingSentence } from '../completeness'
 
 import { DataDialog } from './data-dialog'
+import { DeleteAccountDialog } from './delete-account-dialog'
 import { PartyListDialog, type PartyListRow } from './party-list-dialog'
 import { ChangePasswordDialog } from './password-dialog'
 import { SettingsRow } from './settings-row'
@@ -67,7 +68,7 @@ export function AccountPage() {
   const signOutOthers = useAction(api.account.signOutOtherDevices)
   const [business, setBusiness] = useState<Target<Doc<'businesses'>>>(null)
   const [bank, setBank] = useState<Target<Doc<'bankAccounts'>>>(null)
-  const [open, setOpen] = useState<'numbering' | 'password' | 'data' | null>(null)
+  const [open, setOpen] = useState<'numbering' | 'password' | 'data' | 'delete' | null>(null)
   const [list, setList] = useState<'businesses' | 'banks' | null>(null)
   const [signingOutOthers, setSigningOutOthers] = useState(false)
 
@@ -193,6 +194,20 @@ export function AccountPage() {
             </Button>
           }
         />
+        <SettingsRow
+          title="Delete account"
+          summary="Remove your account and everything in it, for good."
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setOpen('delete')}
+              className="text-danger hover:bg-danger-bg"
+            >
+              <Trash2 /> Delete
+            </Button>
+          }
+        />
       </Section>
 
       <LegalLinks className="justify-center" />
@@ -228,6 +243,12 @@ export function AccountPage() {
       />
       <ChangePasswordDialog open={open === 'password'} onClose={() => setOpen(null)} />
       <DataDialog open={open === 'data'} onClose={() => setOpen(null)} />
+      <DeleteAccountDialog
+        open={open === 'delete'}
+        email={viewer?.email ?? ''}
+        onClose={() => setOpen(null)}
+        onBackup={() => setOpen('data')}
+      />
     </div>
   )
 }

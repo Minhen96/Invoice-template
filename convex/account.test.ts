@@ -187,3 +187,114 @@ describe('sign-in codes', () => {
     ).rejects.toThrow('Dev outbox is disabled')
   })
 })
+
+describe('account.deleteAccount', () => {
+  async function accountWithData(t: ReturnType<typeof setupBackend>, email: string) {
+    const { as, userId } = await signedInUser(t, email)
+    const templateId = await createTemplate(as)
+    await as.mutation(api.invoices.create, { today: TODAY, templateId })
+    await as.mutation(api.clients.create, {
+      name: 'Acme',
+      address: '',
+      attention: '',
+      email: '',
+      notes: '',
+    })
+    await as.mutation(api.items.create, { description: 'Editing', rateSen: 100 })
+    await as.mutation(api.businesses.create, {
+      name: 'Studio',
+      regNo: '',
+      address: '',
+      email: '',
+      phone: '',
+    })
+    await as.mutation(api.bankAccounts.create, {
+      accountName: 'Me',
+      idLabel: 'IC No',
+      idNumber: '',
+      bankName: 'Bank',
+      accountNumber: '1',
+      extra: '',
+    })
+    const logoId = await t.run(async (ctx) => {
+      const id = await ctx.storage.store(new Blob(['logo']))
+      const template = await ctx.db.get(templateId)
+      if (template) await ctx.db.patch(templateId, { logoId: id })
+      const accountId = await ctx.db.insert('authAccounts', {
+        userId,
+        provider: 'password',
+        providerAccountId: email,
+      })
+      await ctx.db.insert('authVerificationCodes', {
+        accountId,
+        provider: 'password',
+        code: 'x',
+        expirationTime: Date.now() + 60_000,
+      })
+      return id
+    })
+    return { as, userId, logoId }
+  }
+
+  /** Everything still stored for this user, table by table. */
+  async function leftovers(t: ReturnType<typeof setupBackend>, userId: string) {
+    return t.run(async (ctx) => {
+      const owned = async (
+        table:
+          | 'invoices'
+          | 'templates'
+          | 'clients'
+          | 'items'
+          | 'businesses'
+          | 'bankAccounts'
+          | 'profiles',
+      ) => (await ctx.db.query(table).collect()).filter((row) => row.userId === userId).length
+      return {
+        invoices: await owned('invoices'),
+        templates: await owned('templates'),
+        clients: await owned('clients'),
+        items: await owned('items'),
+        businesses: await owned('businesses'),
+        bankAccounts: await owned('bankAccounts'),
+        profiles: await owned('profiles'),
+        sessions: (await ctx.db.query('authSessions').collect()).filter((s) => s.userId === userId)
+          .length,
+        accounts: (await ctx.db.query('authAccounts').collect()).filter((a) => a.userId === userId)
+          .length,
+        user: (await ctx.db.get(userId as never)) === null ? 0 : 1,
+      }
+    })
+  }
+
+  it('removes everything the account owns, and only that', async () => {
+    const t = setupBackend()
+    const alice = await accountWithData(t, 'alice@example.com')
+    const bob = await accountWithData(t, 'bob@example.com')
+    const before = await leftovers(t, bob.userId)
+
+    await alice.as.mutation(api.account.deleteAccount, { confirmEmail: ' Alice@Example.com ' })
+
+    expect(Object.values(await leftovers(t, alice.userId)).every((n) => n === 0)).toBe(true)
+    expect(await t.run((ctx) => ctx.db.query('authVerificationCodes').collect())).toHaveLength(1)
+    expect(await t.run((ctx) => ctx.storage.getUrl(alice.logoId))).toBeNull()
+    // Bob is untouched.
+    expect(await leftovers(t, bob.userId)).toEqual(before)
+    expect(await t.run((ctx) => ctx.storage.getUrl(bob.logoId))).not.toBeNull()
+  })
+
+  it('needs the account email typed to confirm', async () => {
+    const t = setupBackend()
+    const alice = await accountWithData(t, 'alice@example.com')
+    await expect(
+      alice.as.mutation(api.account.deleteAccount, { confirmEmail: 'bob@example.com' }),
+    ).rejects.toThrow(/invalid/)
+    expect((await leftovers(t, alice.userId)).invoices).toBe(1)
+  })
+
+  it('refuses to run signed out', async () => {
+    const t = setupBackend()
+    await expect(
+      t.mutation(api.account.deleteAccount, { confirmEmail: 'a@example.com' }),
+    ).rejects.toThrow(/unauthorized/)
+  })
+})

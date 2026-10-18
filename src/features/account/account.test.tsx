@@ -247,6 +247,53 @@ describe('sign-in & data', () => {
     expect(fakeAuth.signOut).toHaveBeenCalled()
   })
 
+  it('deletes the account only after the email is typed, then signs out', async () => {
+    fakeConvex.setQuery(api.profiles.get, profileResult())
+    fakeConvex.setQuery(api.account.viewer, viewer)
+    const { user } = await renderApp('/account')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Delete your account?' }))
+    const confirm = dialog.getByLabelText('Type me@example.com to confirm')
+    const remove = dialog.getByRole('button', { name: 'Delete forever' })
+    expect(remove).toBeDisabled()
+    await user.type(confirm, 'someone@example.com')
+    expect(remove).toBeDisabled()
+    await user.clear(confirm)
+    await user.type(confirm, ' ME@example.com')
+    expect(remove).toBeEnabled()
+    await expectNoA11yViolations()
+
+    await user.click(remove)
+    expect(fakeConvex.handler(api.account.deleteAccount)).toHaveBeenCalledWith({
+      confirmEmail: ' ME@example.com',
+    })
+    // Signing out sends the router to Log in (as with "Log out").
+    await waitFor(() => {
+      expect(fakeAuth.signOut).toHaveBeenCalled()
+    })
+    expect(await screen.findByText('Your account and its data were deleted.')).toBeInTheDocument()
+  })
+
+  it('keeps the account if deleting fails, and offers a backup first', async () => {
+    fakeConvex.setQuery(api.profiles.get, profileResult())
+    fakeConvex.setQuery(api.account.viewer, viewer)
+    fakeConvex.handler(api.account.deleteAccount).mockRejectedValueOnce(new Error('offline'))
+    const { user, router } = await renderApp('/account')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    let dialog = within(await screen.findByRole('dialog', { name: 'Delete your account?' }))
+    await user.type(dialog.getByLabelText('Type me@example.com to confirm'), 'me@example.com')
+    await user.click(dialog.getByRole('button', { name: 'Delete forever' }))
+    expect(
+      await screen.findByText("Couldn't delete the account. Please try again."),
+    ).toBeInTheDocument()
+    expect(currentPath(router)).toBe('/account')
+    expect(fakeAuth.signOut).not.toHaveBeenCalled()
+
+    await user.click(dialog.getByRole('button', { name: 'Download a backup first' }))
+    dialog = within(await screen.findByRole('dialog', { name: 'Your data' }))
+    expect(dialog.getByRole('button', { name: /backup/i })).toBeInTheDocument()
+  })
+
   it('exports the invoice list as CSV', async () => {
     fakeConvex.setQuery(api.profiles.get, profileResult())
     fakeConvex.setQuery(api.invoices.list, [listRow()])

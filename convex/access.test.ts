@@ -177,6 +177,19 @@ describe('account isolation', () => {
     for (const attempt of attempts) await expect(attempt).rejects.toThrow(/not_found/)
   })
 
+  it("deleting an account can't reach another account", async () => {
+    const { alice, bob } = await twoAccounts()
+    await expect(
+      bob.as.mutation(api.account.deleteAccount, { confirmEmail: 'alice@example.com' }),
+    ).rejects.toThrow(/invalid/)
+    expect(await alice.as.query(api.invoices.list, {})).toHaveLength(1)
+    await bob.as.mutation(api.account.deleteAccount, { confirmEmail: 'bob@example.com' })
+    expect(await alice.as.query(api.invoices.list, {})).toHaveLength(1)
+    expect(await alice.as.query(api.account.viewer, {})).toMatchObject({
+      email: 'alice@example.com',
+    })
+  })
+
   it("another account's item can't be changed or deleted", async () => {
     const { bob, itemId } = await twoAccounts()
     await expect(
@@ -236,6 +249,9 @@ describe('account isolation', () => {
     await expect(t.query(api.businesses.list, {})).rejects.toThrow(/unauthorized/)
     await expect(t.query(api.bankAccounts.list, {})).rejects.toThrow(/unauthorized/)
     await expect(t.query(api.profiles.get, {})).rejects.toThrow(/unauthorized/)
+    await expect(
+      t.mutation(api.account.deleteAccount, { confirmEmail: 'alice@example.com' }),
+    ).rejects.toThrow(/unauthorized/)
     expect(await t.query(api.account.viewer, {})).toBeNull()
   })
 })

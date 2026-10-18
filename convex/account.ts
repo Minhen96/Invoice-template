@@ -8,7 +8,8 @@ import {
 import { ConvexError, v } from 'convex/values'
 
 import { internal } from './_generated/api'
-import { action, internalQuery, query } from './_generated/server'
+import type { Id } from './_generated/dataModel'
+import { action, internalQuery, mutation, query } from './_generated/server'
 import { requireUserId } from './lib/auth'
 import { passwordProblem } from './lib/credentials'
 import { appError } from './lib/rules'
@@ -79,5 +80,104 @@ export const changePassword = action({
     })
     const sessionId = await getAuthSessionId(ctx)
     await invalidateSessions(ctx, { userId, except: sessionId ? [sessionId] : [] })
+  },
+})
+
+/**
+ * Delete the signed-in account and everything it owns: invoices, clients, items, templates (and
+ * their logo files), businesses, bank accounts, numbering, and the sign-in itself (sessions,
+ * password / Google link, codes). Can't be undone. The caller types their email to confirm.
+ */
+export const deleteAccount = mutation({
+  args: { confirmEmail: v.string() },
+  handler: async (ctx, { confirmEmail }) => {
+    const userId = await requireUserId(ctx)
+    const user = await ctx.db.get(userId)
+    if (!user) throw appError('not_found')
+    const email = (user.email ?? '').trim().toLowerCase()
+    if (email === '' || confirmEmail.trim().toLowerCase() !== email) {
+      throw appError('invalid', 'confirmEmail')
+    }
+
+    // What the account owns. One branch per table (Convex index types are per table).
+    const logos = new Set<Id<'_storage'>>()
+    for (const row of await ctx.db
+      .query('invoices')
+      .withIndex('by_user_issue', (q) => q.eq('userId', userId))
+      .collect()) {
+      if (row.logoId) logos.add(row.logoId)
+      await ctx.db.delete(row._id)
+    }
+    for (const row of await ctx.db
+      .query('templates')
+      .withIndex('by_user_name', (q) => q.eq('userId', userId))
+      .collect()) {
+      if (row.logoId) logos.add(row.logoId)
+      await ctx.db.delete(row._id)
+    }
+    for (const row of await ctx.db
+      .query('clients')
+      .withIndex('by_user_name', (q) => q.eq('userId', userId))
+      .collect()) {
+      await ctx.db.delete(row._id)
+    }
+    for (const row of await ctx.db
+      .query('items')
+      .withIndex('by_user_key', (q) => q.eq('userId', userId))
+      .collect()) {
+      await ctx.db.delete(row._id)
+    }
+    for (const row of await ctx.db
+      .query('businesses')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect()) {
+      await ctx.db.delete(row._id)
+    }
+    for (const row of await ctx.db
+      .query('bankAccounts')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect()) {
+      await ctx.db.delete(row._id)
+    }
+    for (const row of await ctx.db
+      .query('profiles')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect()) {
+      await ctx.db.delete(row._id)
+    }
+    for (const logoId of logos) await ctx.storage.delete(logoId)
+    for (const row of await ctx.db
+      .query('devOutbox')
+      .withIndex('by_email', (q) => q.eq('email', email))
+      .collect()) {
+      await ctx.db.delete(row._id)
+    }
+
+    // The sign-in: sessions (with their refresh tokens), linked accounts (with their codes).
+    for (const session of await ctx.db
+      .query('authSessions')
+      .withIndex('userId', (q) => q.eq('userId', userId))
+      .collect()) {
+      for (const token of await ctx.db
+        .query('authRefreshTokens')
+        .withIndex('sessionId', (q) => q.eq('sessionId', session._id))
+        .collect()) {
+        await ctx.db.delete(token._id)
+      }
+      await ctx.db.delete(session._id)
+    }
+    for (const account of await ctx.db
+      .query('authAccounts')
+      .withIndex('userIdAndProvider', (q) => q.eq('userId', userId))
+      .collect()) {
+      for (const code of await ctx.db
+        .query('authVerificationCodes')
+        .withIndex('accountId', (q) => q.eq('accountId', account._id))
+        .collect()) {
+        await ctx.db.delete(code._id)
+      }
+      await ctx.db.delete(account._id)
+    }
+    await ctx.db.delete(userId)
   },
 })
