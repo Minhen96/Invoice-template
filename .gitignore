@@ -16,3 +16,6 @@ test-results
 
 # Local dev tools (Mailpit binary)
 .tools
+
+# Wrangler local state
+.wrangler

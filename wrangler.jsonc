@@ -1,0 +1,15 @@
+// Cloudflare Worker that serves the built web app (static files only; the backend is Convex).
+// Built by Workers Builds with: npx convex deploy --cmd 'npm run build'
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Must match the Worker's name in the Cloudflare dashboard.
+  "name": "invoices",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    // Any path that isn't a file (e.g. /invoices/abc) loads the app, which routes it.
+    "not_found_handling": "single-page-application",
+  },
+  // Served at invoices.dreavelab.com once that domain is added; workers.dev stays for previews.
+  "workers_dev": true,
+}

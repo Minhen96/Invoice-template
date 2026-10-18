@@ -1,3 +1,4 @@
+import './lib/zod-config'
 import '@fontsource-variable/inter'
 import './styles/globals.css'
 

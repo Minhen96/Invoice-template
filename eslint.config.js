@@ -54,6 +54,7 @@ export default tseslint.config(
       'test-results',
       'src/routeTree.gen.ts',
       'convex/_generated',
+      '.wrangler',
     ],
   },
   {
