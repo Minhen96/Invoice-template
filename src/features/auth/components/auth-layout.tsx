@@ -1,22 +1,24 @@
 import type { ReactNode } from 'react'
 
-import { LegalLinks } from '@/components/shared/legal-links'
 import { Logo } from '@/components/shared/logo'
+import { SiteFooter } from '@/components/shared/site-footer'
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-dvh flex-col items-center px-4 py-10 sm:justify-center sm:py-16">
-      <div className="mb-8">
-        <Logo />
-      </div>
-      <div className="w-full max-w-[400px] rounded-2xl border border-line bg-surface p-6 shadow-card sm:p-8">
-        {children}
-      </div>
-      <p className="mt-6 max-w-[400px] text-center text-[13px] text-muted">
-        Make clean invoices in minutes and always know what&apos;s been paid.
-      </p>
-      <LegalLinks className="mt-2 justify-center" />
-    </main>
+    <div className="flex min-h-dvh flex-col items-center px-4 py-10 sm:justify-center sm:py-16">
+      <main className="flex w-full flex-col items-center">
+        <div className="mb-8">
+          <Logo />
+        </div>
+        <div className="w-full max-w-[400px] rounded-2xl border border-line bg-surface p-6 shadow-card sm:p-8">
+          {children}
+        </div>
+        <p className="mt-6 max-w-[400px] text-center text-[13px] text-muted">
+          Make clean invoices in minutes and always know what&apos;s been paid.
+        </p>
+      </main>
+      <SiteFooter className="mt-2" />
+    </div>
   )
 }
 

@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useNewInvoice } from '@/hooks/new-invoice-context'
 import { useDeleteWithUndo, useInvoiceActions } from '@/hooks/use-invoice-actions'
 import { cn } from '@/lib/cn'
-import { pickRow } from '@/lib/parties'
+import { needsBusiness } from '@/lib/parties'
 import { today as todayIso } from '@/lib/today'
 
 import {
@@ -63,14 +63,9 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
   )
   // The most common currency first in the totals (from the first template, else RM).
   const currency = templates?.[0]?.currency ?? 'RM'
-  // null = never saved; undefined = still loading (don't flash the nudge).
-  // First-run guidance, one step at a time: business details, then a template.
-  const setup =
-    businesses?.length === 0 || (businesses !== undefined && pickRow(businesses)?.name === '')
-      ? 'business'
-      : templates?.length === 0
-        ? 'template'
-        : null
+  // First-run guidance, one step at a time: the business details tip points at the account
+  // avatar (in the app shell); once they're in, this card points to setting up a template.
+  const setupTemplate = needsBusiness(businesses) === false && templates?.length === 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,24 +78,19 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
         </div>
       </div>
 
-      {setup ? (
+      {setupTemplate ? (
         <Card className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="m-0 font-medium">
-              {setup === 'business' ? 'Add your business details' : 'Set up your invoice template'}
-            </p>
+            <p className="m-0 font-medium">Set up your invoice template</p>
             <p className="m-0 mt-0.5 text-sm text-muted">
-              {setup === 'business'
-                ? 'Your business and bank details go on every invoice — fill them in once.'
-                : 'Choose the look and columns once — every invoice reuses them.'}
+              Choose the look and columns once — every invoice reuses them.
             </p>
           </div>
           <Link
-            to={setup === 'business' ? '/account' : '/templates'}
+            to="/templates"
             className="inline-flex h-11 items-center gap-1.5 self-start rounded-[10px] border border-line px-4 text-sm font-medium hover:bg-raised sm:h-9 sm:self-auto"
           >
-            {setup === 'business' ? 'Open account' : 'Set up template'}{' '}
-            <ArrowRight aria-hidden="true" className="size-4" />
+            Set up template <ArrowRight aria-hidden="true" className="size-4" />
           </Link>
         </Card>
       ) : null}

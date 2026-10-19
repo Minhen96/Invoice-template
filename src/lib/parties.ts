@@ -17,6 +17,15 @@ export function pickRow<T extends Row>(rows: readonly T[] | undefined, chosen?: 
   )
 }
 
+/**
+ * First-run: your business details aren't in yet (no business, or the one in use has no name).
+ * `undefined` while the list is loading, so callers don't flash setup guidance.
+ */
+export function needsBusiness(rows: readonly (Row & { name: string })[] | undefined) {
+  if (rows === undefined) return undefined
+  return (pickRow(rows)?.name ?? '') === ''
+}
+
 export function asBusiness(row: (Business & Row) | null): Business {
   if (!row) return EMPTY_BUSINESS
   const { name, regNo, address, email, phone } = row

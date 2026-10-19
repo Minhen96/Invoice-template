@@ -1,7 +1,7 @@
 import { EMPTY_BUSINESS } from '@convex/lib/defaults'
 import { describe, expect, it } from 'vitest'
 
-import { asBusiness, asPayment, pickRow } from './parties'
+import { asBusiness, asPayment, needsBusiness, pickRow } from './parties'
 
 const rows = [
   { _id: 'a', isDefault: false, name: 'A' },
@@ -16,6 +16,15 @@ describe('pickRow', () => {
     expect(pickRow([{ _id: 'x', isDefault: false, name: 'X' }])?.name).toBe('X')
     expect(pickRow([])).toBeNull()
     expect(pickRow(undefined)).toBeNull()
+  })
+})
+
+describe('needsBusiness', () => {
+  it('is true until the business in use has a name, and undefined while loading', () => {
+    expect(needsBusiness(undefined)).toBeUndefined()
+    expect(needsBusiness([])).toBe(true)
+    expect(needsBusiness([{ _id: 'a', isDefault: true, name: '' }])).toBe(true)
+    expect(needsBusiness(rows)).toBe(false)
   })
 })
 

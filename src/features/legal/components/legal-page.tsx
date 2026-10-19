@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { LegalLinks } from '@/components/shared/legal-links'
 import { Logo } from '@/components/shared/logo'
+import { SiteFooter } from '@/components/shared/site-footer'
 
 export const CONTACT_EMAIL = 'hello@dreavelab.com'
 export const OPERATOR = 'DreaveLab'
@@ -26,7 +26,7 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
             {children}
           </article>
         </main>
-        <LegalLinks className="justify-center" />
+        <SiteFooter />
       </div>
     </div>
   )

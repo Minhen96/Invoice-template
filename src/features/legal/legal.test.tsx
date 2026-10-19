@@ -30,8 +30,13 @@ describe('privacy and terms', () => {
   it('is linked from the sign-in pages', async () => {
     const { user, router } = await renderApp('/login', { signedIn: false })
     const legal = within(await screen.findByRole('navigation', { name: 'Legal' }))
+    expect(screen.getByRole('link', { name: /Powered by DreaveLab/ })).toHaveAttribute(
+      'href',
+      'https://dreavelab.com/',
+    )
     await user.click(legal.getByRole('link', { name: 'Terms' }))
     expect(currentPath(router)).toBe('/terms')
+    expect(screen.getByRole('link', { name: /Powered by DreaveLab/ })).toBeInTheDocument()
   })
 
   it('is linked from the Account page', async () => {

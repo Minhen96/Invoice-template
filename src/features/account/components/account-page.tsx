@@ -13,7 +13,6 @@ import {
   NumberingDialog,
   type Target,
 } from '@/components/shared/party-dialogs'
-import { LegalLinks } from '@/components/shared/legal-links'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -209,8 +208,6 @@ export function AccountPage() {
           }
         />
       </Section>
-
-      <LegalLinks className="justify-center" />
 
       <PartyListDialog
         open={list === 'businesses'}

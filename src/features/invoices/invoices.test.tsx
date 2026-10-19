@@ -132,14 +132,16 @@ describe('invoices dashboard', () => {
     expect(screen.getByText('No invoices match.')).toBeInTheDocument()
   })
 
-  it('guides a brand-new account: business details first', async () => {
+  it('guides a brand-new account: business details first, pointing at the account', async () => {
     fakeConvex.setQuery(api.invoices.list, [])
     fakeConvex.setQuery(api.templates.list, [])
     fakeConvex.setQuery(api.businesses.list, [])
     const { router, user } = await renderApp('/')
     expect(screen.getByText('No invoices yet.')).toBeInTheDocument()
-    expect(screen.getByText('Add your business details')).toBeInTheDocument()
-    await user.click(screen.getByRole('link', { name: /Open account/ }))
+    const tip = within(screen.getByRole('group', { name: 'Add your business details' }))
+    // One step at a time: no template card yet.
+    expect(screen.queryByText('Set up your invoice template')).not.toBeInTheDocument()
+    await user.click(tip.getByRole('link', { name: /Set up account/ }))
     expect(currentPath(router)).toBe('/account')
   })
 
@@ -149,6 +151,9 @@ describe('invoices dashboard', () => {
     fakeConvex.setQuery(api.businesses.list, [businessDoc()])
     const { router, user } = await renderApp('/')
     expect(screen.getByText('Set up your invoice template')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('group', { name: 'Add your business details' }),
+    ).not.toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: /Set up template/ }))
     expect(currentPath(router)).toBe('/templates')
   })
