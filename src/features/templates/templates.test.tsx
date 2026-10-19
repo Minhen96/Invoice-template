@@ -55,19 +55,20 @@ describe('templates page', () => {
       templateDoc({ _id: 'tpl2' as never, name: 'Other' }),
     ])
     const { user } = await renderApp('/templates')
-    await user.click(screen.getByRole('button', { name: 'Actions for Astro announcer' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Delete Astro announcer' }))
     const dialog = await screen.findByRole('dialog', { name: 'Delete Astro announcer?' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete template' }))
     expect(fakeConvex.handler(api.templates.remove)).toHaveBeenCalledWith({ id: 'tpl1' })
   })
 
-  it('keeps your last template: no Delete for it', async () => {
+  it('shows Edit and Duplicate on each card, and keeps your last template (no Delete)', async () => {
     fakeConvex.setQuery(api.templates.list, [templateDoc()])
-    const { user } = await renderApp('/templates')
-    await user.click(screen.getByRole('button', { name: 'Actions for Astro announcer' }))
-    expect(await screen.findByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
+    const { user, router } = await renderApp('/templates')
+    expect(screen.queryByRole('button', { name: 'Delete Astro announcer' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Duplicate Astro announcer' }))
+    expect(fakeConvex.handler(api.templates.duplicate)).toHaveBeenCalledWith({ id: 'tpl1' })
+    await user.click(screen.getByRole('link', { name: 'Edit Astro announcer' }))
+    expect(currentPath(router)).toBe('/templates/tpl1')
   })
 })
 
@@ -130,7 +131,7 @@ describe('template editor', () => {
     expect(preview.getByRole('heading', { name: 'QUOTATION' })).toBeInTheDocument()
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
     // While editing, the actions are Cancel / Save changes.
-    expect(screen.queryByRole('button', { name: /New invoice with this/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Duplicate template' })).not.toBeInTheDocument()
     await expectNoA11yViolations()
     expect(fakeConvex.handler(api.templates.update)).not.toHaveBeenCalled()
 
@@ -165,29 +166,32 @@ describe('template editor', () => {
     expect(fakeConvex.handler(api.templates.update)).not.toHaveBeenCalled()
   })
 
-  it('keeps your last template: no Delete in its menu', async () => {
+  it('duplicates from the header, and keeps your last template (no Delete)', async () => {
     fakeConvex.setQuery(api.templates.get, templateDoc())
     fakeConvex.setQuery(api.templates.list, [templateDoc()])
-    const { user } = await renderApp('/templates/tpl1')
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(await screen.findByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
+    fakeConvex.handler(api.templates.duplicate).mockResolvedValue('tpl2')
+    const { user, router } = await renderApp('/templates/tpl1')
+    expect(screen.queryByRole('button', { name: 'Delete template' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Duplicate template' }))
+    await waitFor(() => {
+      expect(currentPath(router)).toBe('/templates/tpl2')
+    })
   })
 
-  it('starts a new invoice with this template', async () => {
+  it('deletes from the header when there is another template', async () => {
     fakeConvex.setQuery(api.templates.get, templateDoc())
     fakeConvex.setQuery(api.templates.list, [
       templateDoc(),
       templateDoc({ _id: 'tpl2' as never, name: 'Other' }),
     ])
-    fakeConvex.setQuery(api.clients.list, [])
-    fakeConvex.setQuery(api.profiles.get, null)
-    fakeConvex.setQuery(api.businesses.list, [])
-    fakeConvex.setQuery(api.bankAccounts.list, [])
-    const { user } = await renderApp('/templates/tpl1')
-    await user.click(screen.getByRole('button', { name: /New invoice with this/ }))
-    const dialog = await screen.findByRole('dialog', { name: 'New invoice' })
-    expect(within(dialog).getByLabelText('Template')).toHaveValue('tpl1')
+    const { user, router } = await renderApp('/templates/tpl1')
+    await user.click(screen.getByRole('button', { name: 'Delete template' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Astro announcer?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Delete template' }))
+    expect(fakeConvex.handler(api.templates.remove)).toHaveBeenCalledWith({ id: 'tpl1' })
+    await waitFor(() => {
+      expect(currentPath(router)).toBe('/templates')
+    })
   })
 
   it('uploads a picked logo on Save, refusing files over 1 MB', async () => {

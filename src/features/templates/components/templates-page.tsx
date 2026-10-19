@@ -3,14 +3,13 @@ import type { Id } from '@convex/_generated/dataModel'
 import { LAYOUTS } from '@convex/lib/defaults'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
-import { Copy, LayoutTemplate, MoreHorizontal, PenLine, Plus, Trash2 } from 'lucide-react'
+import { Copy, LayoutTemplate, PenLine, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { InvoiceDocument, PaperPreview, sampleInvoice } from '@/components/document'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Menu } from '@/components/ui/menu'
 import { SearchField } from '@/components/ui/search-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { errorMessage } from '@/lib/errors'
@@ -18,6 +17,10 @@ import { asBusiness, asPayment, pickRow } from '@/lib/parties'
 import { today } from '@/lib/today'
 
 import { DeleteTemplateDialog } from './delete-template-dialog'
+
+/** Edit is a link (it opens the editor) dressed like the secondary buttons beside it. */
+const cardAction =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-sm font-medium text-text shadow-card transition-colors hover:bg-raised max-sm:w-11 max-sm:px-0 sm:h-9 [&_svg]:size-[18px]'
 
 export function TemplatesPage() {
   const templates = useQuery(api.templates.list)
@@ -116,7 +119,7 @@ export function TemplatesPage() {
                         />
                       </PaperPreview>
                     </div>
-                    <div className="flex items-start justify-between gap-2 p-4">
+                    <div className="p-4">
                       <div className="min-w-0">
                         <Link
                           to="/templates/$id"
@@ -129,47 +132,36 @@ export function TemplatesPage() {
                           {LAYOUTS.find((l) => l.id === template.layout)?.name} · {template.title}
                         </p>
                       </div>
-                      <div className="relative z-10 -mt-1 -mr-2">
-                        <Menu
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Actions for ${template.name}`}
-                            >
-                              <MoreHorizontal />
-                            </Button>
-                          }
-                          items={[
-                            {
-                              label: 'Edit',
-                              icon: <PenLine />,
-                              onSelect: () =>
-                                void navigate({
-                                  to: '/templates/$id',
-                                  params: { id: template._id },
-                                }),
-                            },
-                            {
-                              label: 'Duplicate',
-                              icon: <Copy />,
-                              onSelect: () => void copy(template._id),
-                            },
-                            ...(canDelete
-                              ? ([
-                                  'separator',
-                                  {
-                                    label: 'Delete',
-                                    icon: <Trash2 />,
-                                    danger: true,
-                                    onSelect: () =>
-                                      setDeleting({ _id: template._id, name: template.name }),
-                                  },
-                                ] as const)
-                              : []),
-                          ]}
-                        />
-                      </div>
+                    </div>
+                    <div className="relative z-10 mt-auto flex gap-2 px-4 pb-4">
+                      <Link
+                        to="/templates/$id"
+                        params={{ id: template._id }}
+                        aria-label={`Edit ${template.name}`}
+                        className={cardAction}
+                      >
+                        <PenLine aria-hidden="true" /> <span className="max-sm:sr-only">Edit</span>
+                      </Link>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        aria-label={`Duplicate ${template.name}`}
+                        onClick={() => void copy(template._id)}
+                        className="max-sm:size-11 max-sm:px-0"
+                      >
+                        <Copy /> <span className="max-sm:sr-only">Duplicate</span>
+                      </Button>
+                      {canDelete ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          aria-label={`Delete ${template.name}`}
+                          onClick={() => setDeleting({ _id: template._id, name: template.name })}
+                          className="ml-auto text-danger hover:bg-danger-bg max-sm:size-11 max-sm:px-0"
+                        >
+                          <Trash2 /> <span className="max-sm:sr-only">Delete</span>
+                        </Button>
+                      ) : null}
                     </div>
                   </Card>
                 </li>

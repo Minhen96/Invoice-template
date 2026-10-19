@@ -4,7 +4,7 @@ import { DEFAULT_TEMPLATE } from '@convex/lib/defaults'
 import type { TemplateFields } from '@convex/lib/validators'
 import { Link, useBlocker, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
-import { ArrowLeft, Check, Copy, FilePlus2, MoreHorizontal, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Trash2 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -16,9 +16,7 @@ import { LookPicker } from '@/components/shared/look-picker'
 import { Button } from '@/components/ui/button'
 import { SectionCard } from '@/components/ui/card'
 import { Field, SelectField, TextAreaField } from '@/components/ui/field'
-import { Menu } from '@/components/ui/menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useNewInvoice } from '@/hooks/new-invoice-context'
 import { errorMessage } from '@/lib/errors'
 import { asBusiness, asPayment, pickRow } from '@/lib/parties'
 import { today } from '@/lib/today'
@@ -101,7 +99,6 @@ function TemplateEditor({ template }: { template: LoadedTemplate | null }) {
   const businesses = useQuery(api.businesses.list)
   const banks = useQuery(api.bankAccounts.list)
   const navigate = useNavigate()
-  const newInvoice = useNewInvoice()
   const saved = useMemo(() => (template ? toFields(template) : NEW_DRAFT), [template])
   const [draft, setDraft] = useState<TemplateDraft>(saved)
   const [logo, setLogo] = useState<LogoChange>(null)
@@ -199,31 +196,27 @@ function TemplateEditor({ template }: { template: LoadedTemplate | null }) {
         <div className="ml-auto flex items-center gap-2">
           {template && !dirty ? (
             <>
-              <Button size="sm" onClick={() => newInvoice({ templateId: template._id })}>
-                <FilePlus2 /> <span className="max-sm:sr-only">New invoice with this</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-label="Duplicate template"
+                onClick={() => void copy()}
+                className="max-sm:size-11 max-sm:px-0"
+              >
+                <Copy /> <span className="max-sm:sr-only">Duplicate</span>
               </Button>
-              <Menu
-                trigger={
-                  <Button variant="secondary" size="icon" aria-label="More actions">
-                    <MoreHorizontal />
-                  </Button>
-                }
-                items={[
-                  { label: 'Duplicate', icon: <Copy />, onSelect: () => void copy() },
-                  // Your last template stays: every invoice starts from one.
-                  ...((templates?.length ?? 0) > 1
-                    ? ([
-                        'separator',
-                        {
-                          label: 'Delete',
-                          icon: <Trash2 />,
-                          danger: true,
-                          onSelect: () => setDeleting(true),
-                        },
-                      ] as const)
-                    : []),
-                ]}
-              />
+              {/* Your last template stays: every invoice starts from one. */}
+              {(templates?.length ?? 0) > 1 ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  aria-label="Delete template"
+                  onClick={() => setDeleting(true)}
+                  className="text-danger hover:bg-danger-bg max-sm:size-11 max-sm:px-0"
+                >
+                  <Trash2 /> <span className="max-sm:sr-only">Delete</span>
+                </Button>
+              ) : null}
             </>
           ) : (
             <>

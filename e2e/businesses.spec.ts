@@ -41,8 +41,10 @@ test('a template can invoice as a second business', async ({ page }) => {
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page).toHaveURL(/\/templates$/)
 
-  await page.getByRole('link', { name: 'Default', exact: true }).click()
-  await page.getByRole('button', { name: /New invoice with this/ }).click()
+  await page
+    .getByRole('button', { name: /^(New invoice|Create)$/ })
+    .first()
+    .click()
   await page.getByRole('dialog').getByRole('button', { name: 'Create invoice' }).click()
   await expect(page).toHaveURL(/\/invoices\//)
   const invoice = page.getByRole('region', { name: 'Preview' })

@@ -111,14 +111,14 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
           </span>
         </button>
         <Stat
-          label="Outstanding"
-          value={rows === undefined ? null : formatAmounts(summary.outstanding, currency)}
-          note={`${String(summary.outstandingCount)} unpaid`}
-        />
-        <Stat
           label={`Paid in ${today.slice(0, 4)}`}
           value={rows === undefined ? null : formatAmounts(summary.paidThisYear, currency)}
           note="Money received"
+        />
+        <Stat
+          label="Unpaid"
+          value={rows === undefined ? null : formatAmounts(summary.outstanding, currency)}
+          note={`${String(summary.outstandingCount)} pending`}
         />
       </section>
 

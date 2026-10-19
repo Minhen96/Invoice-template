@@ -45,7 +45,7 @@ describe('invoices dashboard', () => {
     await renderApp('/')
     const summary = screen.getByRole('region', { name: 'Summary' })
     expect(within(summary).getByText('RM 1,700.00')).toBeInTheDocument() // outstanding
-    expect(within(summary).getByText('2 unpaid')).toBeInTheDocument()
+    expect(within(summary).getByText('2 pending')).toBeInTheDocument()
     expect(within(summary).getByText('RM 5,000.00')).toBeInTheDocument() // paid in 2026
     expect(within(summary).queryByText(/Invoiced in/)).not.toBeInTheDocument()
     expect(screen.queryByText(/overdue|past due/i)).not.toBeInTheDocument()
@@ -126,11 +126,13 @@ describe('invoices dashboard', () => {
     expect(await screen.findByRole('dialog', { name: 'New invoice' })).toBeInTheDocument()
   })
 
-  it('puts Create invoice first in the summary row', async () => {
+  it('orders the summary row: Create invoice, Paid, then Unpaid', async () => {
     withData()
     await renderApp('/')
-    const summary = screen.getByRole('region', { name: 'Summary' })
-    expect(summary.firstElementChild).toHaveAccessibleName(/Create invoice/)
+    const boxes = [...screen.getByRole('region', { name: 'Summary' }).children]
+    expect(boxes[0]).toHaveAccessibleName(/Create invoice/)
+    expect(boxes[1]).toHaveTextContent(/^Paid in 2026/)
+    expect(boxes[2]).toHaveTextContent(/^Unpaid.*pending$/)
   })
 
   it('says so when nothing matches', async () => {
