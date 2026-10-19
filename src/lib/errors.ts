@@ -21,6 +21,7 @@ const MESSAGES: Partial<Record<AppErrorCode, string>> = {
   number_taken: 'Another invoice already uses this number.',
   weak_password: 'Use at least 8 characters for your password.',
   wrong_password: 'Your current password is not right.',
+  last_template: 'Keep at least one template — every invoice starts from one.',
 }
 
 /** A short, human message for any error thrown by a Convex call. */

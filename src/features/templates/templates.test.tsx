@@ -3,28 +3,24 @@ import { DEFAULT_TEMPLATE } from '@convex/lib/defaults'
 import { waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AUTOSAVE_DELAY_MS } from '@/hooks/use-autosave'
 import { fakeConvex } from '@/testing/fake-convex'
 import { bankDoc, businessDoc, templateDoc } from '@/testing/fixtures'
 import { currentPath, expectNoA11yViolations, renderApp, screen } from '@/testing/render-app'
-
-const SAVE_WAIT = { timeout: AUTOSAVE_DELAY_MS + 2000 }
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
 describe('templates page', () => {
-  it('explains templates and creates the first one', async () => {
+  it('explains templates and opens a new one without storing anything yet', async () => {
     fakeConvex.setQuery(api.templates.list, [])
-    fakeConvex.handler(api.templates.create).mockResolvedValue('tplNew')
     const { user, router } = await renderApp('/templates')
     expect(screen.getByText('No templates yet.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Create your first template/ }))
-    expect(fakeConvex.handler(api.templates.create)).toHaveBeenCalledWith({})
     await waitFor(() => {
-      expect(currentPath(router)).toBe('/templates/tplNew')
+      expect(currentPath(router)).toBe('/templates/new')
     })
+    expect(fakeConvex.handler(api.templates.create)).not.toHaveBeenCalled()
   })
 
   it('lists templates with a preview', async () => {
@@ -54,13 +50,24 @@ describe('templates page', () => {
   })
 
   it('deletes a template after confirming', async () => {
-    fakeConvex.setQuery(api.templates.list, [templateDoc()])
+    fakeConvex.setQuery(api.templates.list, [
+      templateDoc(),
+      templateDoc({ _id: 'tpl2' as never, name: 'Other' }),
+    ])
     const { user } = await renderApp('/templates')
     await user.click(screen.getByRole('button', { name: 'Actions for Astro announcer' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Delete' }))
     const dialog = await screen.findByRole('dialog', { name: 'Delete Astro announcer?' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete template' }))
     expect(fakeConvex.handler(api.templates.remove)).toHaveBeenCalledWith({ id: 'tpl1' })
+  })
+
+  it('keeps your last template: no Delete for it', async () => {
+    fakeConvex.setQuery(api.templates.list, [templateDoc()])
+    const { user } = await renderApp('/templates')
+    await user.click(screen.getByRole('button', { name: 'Actions for Astro announcer' }))
+    expect(await screen.findByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
   })
 })
 
@@ -82,12 +89,11 @@ describe('template business & bank account', () => {
 
     await user.selectOptions(screen.getByLabelText('Business'), 'biz2')
     expect(preview().getByText('MIN HEN STUDIO')).toBeInTheDocument()
-    await waitFor(() => {
-      expect(fakeConvex.handler(api.templates.update).mock.calls.at(-1)?.[0]).toMatchObject({
-        businessId: 'biz2',
-        bankAccountId: undefined,
-      })
-    }, SAVE_WAIT)
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(fakeConvex.handler(api.templates.update).mock.calls.at(-1)?.[0]).toMatchObject({
+      businessId: 'biz2',
+      bankAccountId: undefined,
+    })
   })
 
   it('points to Account when there is no business yet', async () => {
@@ -106,13 +112,14 @@ describe('template editor', () => {
     expect(screen.getByText("This template doesn't exist.")).toBeInTheDocument()
   })
 
-  it('saves changes by itself and previews them with your business details', async () => {
+  it('saves only on Save changes, previewing with your business details', async () => {
     fakeConvex.setQuery(api.templates.get, templateDoc())
     fakeConvex.setQuery(api.businesses.list, [businessDoc()])
     fakeConvex.setQuery(api.bankAccounts.list, [bankDoc()])
-    const { user } = await renderApp('/templates/tpl1')
+    const { user, router } = await renderApp('/templates/tpl1')
     // Business and bank details live in Account, not in templates.
     expect(screen.queryByLabelText('Business name')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Bold' }))
     await user.selectOptions(screen.getByLabelText('Payment due'), '14')
     await user.clear(screen.getByLabelText('Title'))
@@ -121,16 +128,50 @@ describe('template editor', () => {
     const preview = within(screen.getByRole('region', { name: 'Preview' }))
     expect(preview.getByText('Bank Account: 1234567890')).toBeInTheDocument()
     expect(preview.getByRole('heading', { name: 'QUOTATION' })).toBeInTheDocument()
-    await waitFor(() => {
-      expect(fakeConvex.handler(api.templates.update).mock.calls.at(-1)?.[0]).toMatchObject({
-        id: 'tpl1',
-        layout: 'bold',
-        dueDays: 14,
-        title: 'QUOTATION',
-      })
-    }, SAVE_WAIT)
-    expect(await screen.findByText('Auto-saved')).toBeInTheDocument()
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    // While editing, the actions are Cancel / Save changes.
+    expect(screen.queryByRole('button', { name: /New invoice with this/ })).not.toBeInTheDocument()
     await expectNoA11yViolations()
+    expect(fakeConvex.handler(api.templates.update)).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(fakeConvex.handler(api.templates.update)).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'tpl1', layout: 'bold', dueDays: 14, title: 'QUOTATION' }),
+    )
+    await waitFor(() => {
+      expect(currentPath(router)).toBe('/templates')
+    })
+  })
+
+  it('cancelling with changes asks first, and discarding saves nothing', async () => {
+    fakeConvex.setQuery(api.templates.get, templateDoc())
+    fakeConvex.setQuery(api.templates.list, [templateDoc()])
+    const { user, router } = await renderApp('/templates/tpl1')
+    await user.clear(screen.getByLabelText('Title'))
+    await user.type(screen.getByLabelText('Title'), 'RECEIPT')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Discard your changes?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Keep editing' }))
+    expect(screen.getByLabelText('Title')).toHaveValue('RECEIPT')
+    expect(currentPath(router)).toBe('/templates/tpl1')
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    const again = await screen.findByRole('dialog', { name: 'Discard your changes?' })
+    await user.click(within(again).getByRole('button', { name: 'Discard changes' }))
+    await waitFor(() => {
+      expect(currentPath(router)).toBe('/templates')
+    })
+    expect(fakeConvex.handler(api.templates.update)).not.toHaveBeenCalled()
+  })
+
+  it('keeps your last template: no Delete in its menu', async () => {
+    fakeConvex.setQuery(api.templates.get, templateDoc())
+    fakeConvex.setQuery(api.templates.list, [templateDoc()])
+    const { user } = await renderApp('/templates/tpl1')
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
   })
 
   it('starts a new invoice with this template', async () => {
@@ -149,7 +190,7 @@ describe('template editor', () => {
     expect(within(dialog).getByLabelText('Template')).toHaveValue('tpl1')
   })
 
-  it('uploads a logo, refusing files over 1 MB', async () => {
+  it('uploads a picked logo on Save, refusing files over 1 MB', async () => {
     fakeConvex.setQuery(api.templates.get, templateDoc())
     fakeConvex
       .handler(api.templates.generateLogoUploadUrl)
@@ -165,6 +206,10 @@ describe('template editor', () => {
 
     const ok = new File([new Uint8Array(10)], 'logo.png', { type: 'image/png' })
     await user.upload(screen.getByLabelText('Logo image file'), ok)
+    expect(await screen.findByRole('img', { name: 'Your logo' })).toBeInTheDocument()
+    expect(fakeConvex.handler(api.templates.setLogo)).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => {
       expect(fakeConvex.handler(api.templates.setLogo)).toHaveBeenCalledWith({
         id: 'tpl1',
@@ -173,10 +218,13 @@ describe('template editor', () => {
     })
   })
 
-  it('removes the logo', async () => {
+  it('removes the logo on Save', async () => {
     fakeConvex.setQuery(api.templates.get, templateDoc({ logoUrl: 'https://cdn.example/logo.png' }))
     const { user } = await renderApp('/templates/tpl1')
     await user.click(screen.getByRole('button', { name: 'Remove' }))
+    expect(screen.queryByRole('img', { name: 'Your logo' })).not.toBeInTheDocument()
+    expect(fakeConvex.handler(api.templates.removeLogo)).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(fakeConvex.handler(api.templates.removeLogo)).toHaveBeenCalledWith({ id: 'tpl1' })
   })
 
@@ -195,12 +243,11 @@ describe('template editor', () => {
 
     await user.click(screen.getByRole('button', { name: 'Remove column Venue' }))
     expect(preview().queryByRole('columnheader', { name: 'Venue' })).not.toBeInTheDocument()
-    await waitFor(() => {
-      const saved = fakeConvex.handler(api.templates.update).mock.calls.at(-1)?.[0] as {
-        columns: { extra: unknown[] }
-      }
-      expect(saved.columns.extra).toHaveLength(2)
-    }, SAVE_WAIT)
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    const saved = fakeConvex.handler(api.templates.update).mock.calls.at(-1)?.[0] as {
+      columns: { extra: unknown[] }
+    }
+    expect(saved.columns.extra).toHaveLength(2)
   })
 
   it('can show just one amount per item', async () => {
@@ -225,5 +272,54 @@ describe('template editor', () => {
         'Rate Per Session / Hour* (RM)',
       ),
     ).toBeInTheDocument()
+  })
+})
+
+describe('new template', () => {
+  it('is created only on Create template, with the defaults and your changes', async () => {
+    fakeConvex.setQuery(api.businesses.list, [
+      businessDoc(),
+      businessDoc({ _id: 'biz2' as never, name: 'MIN HEN STUDIO', isDefault: false }),
+    ])
+    fakeConvex.setQuery(api.bankAccounts.list, [])
+    fakeConvex.setQuery(api.templates.list, [])
+    fakeConvex.handler(api.templates.create).mockResolvedValue('tplNew')
+    const { user, router } = await renderApp('/templates/new')
+    expect(screen.getByLabelText('Template name')).toHaveValue('New template')
+    await user.clear(screen.getByLabelText('Template name'))
+    await user.click(screen.getByRole('button', { name: 'Create template' }))
+    expect(screen.getByText('Give it a name.')).toBeInTheDocument()
+    expect(fakeConvex.handler(api.templates.create)).not.toHaveBeenCalled()
+
+    await user.type(screen.getByLabelText('Template name'), 'Voice-over')
+    await user.selectOptions(screen.getByLabelText('Business'), 'biz2')
+    await user.click(screen.getByRole('button', { name: 'Create template' }))
+    expect(fakeConvex.handler(api.templates.create)).toHaveBeenCalledWith({
+      fields: { ...DEFAULT_TEMPLATE, name: 'Voice-over' },
+      businessId: 'biz2',
+      bankAccountId: undefined,
+    })
+    expect(await screen.findByText('Template created')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(currentPath(router)).toBe('/templates')
+    })
+  })
+
+  it('cancel leaves straight away when nothing changed', async () => {
+    fakeConvex.setQuery(api.templates.list, [])
+    const { user, router } = await renderApp('/templates/new')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => {
+      expect(currentPath(router)).toBe('/templates')
+    })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('says so when the template could not be saved', async () => {
+    fakeConvex.handler(api.templates.create).mockRejectedValue(new Error('offline'))
+    const { user, router } = await renderApp('/templates/new')
+    await user.click(screen.getByRole('button', { name: 'Create template' }))
+    expect(await screen.findByText("Couldn't save the template.")).toBeInTheDocument()
+    expect(currentPath(router)).toBe('/templates/new')
   })
 })

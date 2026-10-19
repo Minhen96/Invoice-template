@@ -126,6 +126,13 @@ describe('invoices dashboard', () => {
     expect(await screen.findByRole('dialog', { name: 'New invoice' })).toBeInTheDocument()
   })
 
+  it('puts Create invoice first in the summary row', async () => {
+    withData()
+    await renderApp('/')
+    const summary = screen.getByRole('region', { name: 'Summary' })
+    expect(summary.firstElementChild).toHaveAccessibleName(/Create invoice/)
+  })
+
   it('says so when nothing matches', async () => {
     withData()
     await renderApp('/?q=zzz')

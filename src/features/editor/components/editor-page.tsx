@@ -26,6 +26,7 @@ import {
   type DocumentInvoice,
   type EditPart,
 } from '@/components/document'
+import { DiscardDialog } from '@/components/shared/discard-dialog'
 import { MarkPaidDialog } from '@/components/shared/mark-paid-dialog'
 import { StatusPill } from '@/components/shared/status-pill'
 import { Button } from '@/components/ui/button'
@@ -343,6 +344,7 @@ function Editor({ invoice }: { invoice: LoadedInvoice }) {
 
       <DiscardDialog
         open={confirmDiscard || blocker.status === 'blocked'}
+        message="The invoice stays as it was before you edited it."
         onKeep={() => {
           setConfirmDiscard(false)
           blocker.reset?.()
@@ -365,40 +367,6 @@ function Editor({ invoice }: { invoice: LoadedInvoice }) {
         id={invoice._id}
       />
     </div>
-  )
-}
-
-/** "Discard your changes?" — when cancelling or leaving with unsaved edits. */
-function DiscardDialog({
-  open,
-  onKeep,
-  onDiscard,
-}: {
-  open: boolean
-  onKeep: () => void
-  onDiscard: () => void
-}) {
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) onKeep()
-      }}
-      title="Discard your changes?"
-      description="You have changes that aren't saved yet."
-      footer={
-        <>
-          <Button variant="secondary" onClick={onKeep}>
-            Keep editing
-          </Button>
-          <Button variant="danger" onClick={onDiscard}>
-            Discard changes
-          </Button>
-        </>
-      }
-    >
-      <p className="m-0 text-sm text-muted">The invoice stays as it was before you edited it.</p>
-    </Dialog>
   )
 }
 

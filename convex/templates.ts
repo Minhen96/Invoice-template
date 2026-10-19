@@ -44,15 +44,46 @@ async function deleteLogoIfUnused(ctx: MutationCtx, userId: Id<'users'>, logoId:
   await ctx.storage.delete(logoId)
 }
 
+async function templatesOf(ctx: QueryCtx, userId: Id<'users'>) {
+  return ctx.db
+    .query('templates')
+    .withIndex('by_user_name', (q) => q.eq('userId', userId))
+    .collect()
+}
+
+export const DEFAULT_TEMPLATE_NAME = 'Default'
+
+/**
+ * Everyone starts with a ready-to-use template, so the first invoice needs no setup.
+ * Does nothing when the user already has one.
+ */
+export async function seedDefaultTemplate(ctx: MutationCtx, userId: Id<'users'>) {
+  const existing = await ctx.db
+    .query('templates')
+    .withIndex('by_user_name', (q) => q.eq('userId', userId))
+    .first()
+  if (existing) return
+  await ctx.db.insert('templates', { userId, ...DEFAULT_TEMPLATE, name: DEFAULT_TEMPLATE_NAME })
+}
+
+/**
+ * One-off, for accounts made before every account got a default template:
+ * `npx convex run templates:seedMissingDefaults` (add `--prod` for the live site).
+ */
+export const seedMissingDefaults = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query('users').collect()
+    for (const user of users) await seedDefaultTemplate(ctx, user._id)
+  },
+})
+
 /** All templates, A→Z. */
 export const list = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireUserId(ctx)
-    const templates = await ctx.db
-      .query('templates')
-      .withIndex('by_user_name', (q) => q.eq('userId', userId))
-      .collect()
+    const templates = await templatesOf(ctx, userId)
     return Promise.all(templates.map((t) => withLogoUrl(ctx, t)))
   },
 })
@@ -72,12 +103,19 @@ export const get = query({
 
 /** New template; starts from sensible defaults unless fields are given. */
 export const create = mutation({
-  args: { fields: v.optional(templateFieldsObject) },
-  handler: async (ctx, { fields }) => {
+  args: {
+    fields: v.optional(templateFieldsObject),
+    /** Omit to use the default business / bank account. */
+    businessId: v.optional(v.id('businesses')),
+    bankAccountId: v.optional(v.id('bankAccounts')),
+  },
+  handler: async (ctx, { fields, businessId, bankAccountId }) => {
     const userId = await requireUserId(ctx)
+    if (businessId) await getOwned(ctx, userId, businessId)
+    if (bankAccountId) await getOwned(ctx, userId, bankAccountId)
     const values = tidy(fields ?? DEFAULT_TEMPLATE)
     checkTemplate(values)
-    return ctx.db.insert('templates', { userId, ...values })
+    return ctx.db.insert('templates', { userId, ...values, businessId, bankAccountId })
   },
 })
 
@@ -113,12 +151,16 @@ export const duplicate = mutation({
   },
 })
 
-/** Invoices made from it keep their own copy of everything, so they are unaffected. */
+/**
+ * Invoices made from it keep their own copy of everything, so they are unaffected.
+ * Your last template stays: there's always one to make an invoice with.
+ */
 export const remove = mutation({
   args: { id: v.id('templates') },
   handler: async (ctx, { id }) => {
     const userId = await requireUserId(ctx)
     const template = await getOwned(ctx, userId, id)
+    if ((await templatesOf(ctx, userId)).length <= 1) throw appError('last_template')
     await ctx.db.delete(id)
     if (template.logoId) await deleteLogoIfUnused(ctx, userId, template.logoId)
     const profile = await findProfile(ctx, userId)

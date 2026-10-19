@@ -397,6 +397,7 @@ describe('invoices from templates', () => {
 
   it('needs a template that exists', async () => {
     const { owner, templateId } = await setup()
+    await createTemplate(owner.as, { name: 'Kept' }) // the last template can't be deleted
     await owner.as.mutation(api.templates.remove, { id: templateId })
     await expect(
       owner.as.mutation(api.invoices.create, { today: TODAY, templateId }),

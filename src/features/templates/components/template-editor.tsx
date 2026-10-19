@@ -1,23 +1,23 @@
 import { api } from '@convex/_generated/api'
 import type { Doc, Id } from '@convex/_generated/dataModel'
+import { DEFAULT_TEMPLATE } from '@convex/lib/defaults'
 import type { TemplateFields } from '@convex/lib/validators'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useBlocker, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
-import { ArrowLeft, Copy, FilePlus2, MoreHorizontal, Trash2 } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { ArrowLeft, Check, Copy, FilePlus2, MoreHorizontal, Trash2 } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { InvoiceDocument, PaperPreview, sampleInvoice } from '@/components/document'
 import { ColumnsEditor } from '@/components/shared/columns-editor'
 import { DocumentSettingsFields } from '@/components/shared/document-fields'
+import { DiscardDialog } from '@/components/shared/discard-dialog'
 import { LookPicker } from '@/components/shared/look-picker'
-import { SaveIndicator } from '@/components/shared/save-indicator'
 import { Button } from '@/components/ui/button'
 import { SectionCard } from '@/components/ui/card'
 import { Field, SelectField, TextAreaField } from '@/components/ui/field'
 import { Menu } from '@/components/ui/menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useAutosave } from '@/hooks/use-autosave'
 import { useNewInvoice } from '@/hooks/new-invoice-context'
 import { errorMessage } from '@/lib/errors'
 import { asBusiness, asPayment, pickRow } from '@/lib/parties'
@@ -25,6 +25,7 @@ import { today } from '@/lib/today'
 
 import { DeleteTemplateDialog } from './delete-template-dialog'
 import { LogoField } from './logo-field'
+import { useSaveLogo, type LogoChange } from './use-save-logo'
 
 const DUE_OPTIONS = [
   { value: 'none', label: 'No due date' },
@@ -37,6 +38,11 @@ type TemplateDraft = TemplateFields & {
   businessId?: Id<'businesses'> | undefined
   bankAccountId?: Id<'bankAccounts'> | undefined
 }
+
+type LoadedTemplate = Doc<'templates'> & { logoUrl: string | null }
+
+/** Where a new template starts: the usual defaults. */
+const NEW_DRAFT: TemplateDraft = { ...DEFAULT_TEMPLATE, name: 'New template' }
 
 function toFields(template: Doc<'templates'>): TemplateDraft {
   return {
@@ -77,33 +83,95 @@ export function TemplateEditorPage({ id }: { id: string }) {
   return <TemplateEditor key={template._id} template={template} />
 }
 
-function TemplateEditor({ template }: { template: Doc<'templates'> & { logoUrl: string | null } }) {
+/** A template that isn't stored until "Create template". */
+export function NewTemplatePage() {
+  return <TemplateEditor template={null} />
+}
+
+/**
+ * Edit a template (or a new one, when `template` is null). Nothing is saved until
+ * "Save changes" / "Create template"; Cancel, or leaving with changes, asks first.
+ */
+function TemplateEditor({ template }: { template: LoadedTemplate | null }) {
+  const create = useMutation(api.templates.create)
   const update = useMutation(api.templates.update)
+  const duplicate = useMutation(api.templates.duplicate)
+  const saveLogo = useSaveLogo()
+  const templates = useQuery(api.templates.list)
   const businesses = useQuery(api.businesses.list)
   const banks = useQuery(api.bankAccounts.list)
-  const duplicate = useMutation(api.templates.duplicate)
   const navigate = useNavigate()
   const newInvoice = useNewInvoice()
-  const [draft, setDraft] = useState<TemplateDraft>(() => toFields(template))
+  const saved = useMemo(() => (template ? toFields(template) : NEW_DRAFT), [template])
+  const [draft, setDraft] = useState<TemplateDraft>(saved)
+  const [logo, setLogo] = useState<LogoChange>(null)
+  const [saving, setSaving] = useState(false)
+  const [nameError, setNameError] = useState<string>()
   const [deleting, setDeleting] = useState(false)
-  const save = useCallback(
-    (fields: TemplateDraft) => update({ id: template._id, ...fields }),
-    [update, template._id],
-  )
-  const { state, error, flush } = useAutosave(draft, save)
+  // Set once saved, so going back to the list doesn't ask about the (just saved) changes.
+  const done = useRef(false)
+
+  const dirty = logo !== null || JSON.stringify(draft) !== JSON.stringify(saved)
+  const blocker = useBlocker({
+    shouldBlockFn: () => dirty && !done.current,
+    enableBeforeUnload: () => dirty && !done.current,
+    withResolver: true,
+  })
+
   const change = (patch: Partial<TemplateDraft>) => {
     setDraft((prev) => ({ ...prev, ...patch }))
+    if ('name' in patch) setNameError(undefined)
   }
   const business = pickRow(businesses, draft.businessId)
   const bank = pickRow(banks, draft.bankAccountId)
+  const logoUrl =
+    logo?.kind === 'set'
+      ? logo.previewUrl
+      : logo?.kind === 'remove'
+        ? null
+        : (template?.logoUrl ?? null)
   const preview = useMemo(
     () =>
       sampleInvoice(draft, today(), { business: asBusiness(business), payment: asPayment(bank) }),
     [draft, business, bank],
   )
 
+  const backToList = () => navigate({ to: '/templates' })
+
+  async function save() {
+    if (draft.name.trim() === '') {
+      setNameError('Give it a name.')
+      return
+    }
+    setSaving(true)
+    let id: Id<'templates'>
+    try {
+      const { businessId, bankAccountId, ...fields } = draft
+      if (template) {
+        id = template._id
+        await update({ id, ...draft })
+      } else {
+        id = await create({ fields, businessId, bankAccountId })
+      }
+    } catch (error) {
+      toast.error(errorMessage(error, "Couldn't save the template."))
+      setSaving(false)
+      return
+    }
+    try {
+      await saveLogo(id, logo)
+      toast.success(template ? 'Template saved' : 'Template created')
+    } catch (error) {
+      toast.error(
+        errorMessage(error, "Saved, but couldn't use that logo. Try a PNG or JPG under 1 MB."),
+      )
+    }
+    done.current = true
+    await backToList()
+  }
+
   async function copy() {
-    await flush()
+    if (!template) return
     try {
       const id = await duplicate({ id: template._id })
       toast.success('Template copied')
@@ -124,38 +192,49 @@ function TemplateEditor({ template }: { template: Doc<'templates'> & { logoUrl: 
         >
           <ArrowLeft aria-hidden="true" className="size-5" />
         </Link>
-        <h1 className="m-0 truncate text-xl font-semibold tracking-tight">
+        <h1 className="m-0 min-w-0 truncate text-xl font-semibold tracking-tight">
           {draft.name.trim() || 'Untitled template'}
         </h1>
-        <SaveIndicator state={state} message={error?.message} onRetry={() => void flush()} />
+        {template && dirty ? <span className="text-[13px] text-muted">Unsaved changes</span> : null}
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => {
-              void flush().then(() => {
-                newInvoice({ templateId: template._id })
-              })
-            }}
-          >
-            <FilePlus2 /> <span className="max-sm:sr-only">New invoice with this</span>
-          </Button>
-          <Menu
-            trigger={
-              <Button variant="secondary" size="icon" aria-label="More actions">
-                <MoreHorizontal />
+          {template && !dirty ? (
+            <>
+              <Button size="sm" onClick={() => newInvoice({ templateId: template._id })}>
+                <FilePlus2 /> <span className="max-sm:sr-only">New invoice with this</span>
               </Button>
-            }
-            items={[
-              { label: 'Duplicate', icon: <Copy />, onSelect: () => void copy() },
-              'separator',
-              {
-                label: 'Delete',
-                icon: <Trash2 />,
-                danger: true,
-                onSelect: () => setDeleting(true),
-              },
-            ]}
-          />
+              <Menu
+                trigger={
+                  <Button variant="secondary" size="icon" aria-label="More actions">
+                    <MoreHorizontal />
+                  </Button>
+                }
+                items={[
+                  { label: 'Duplicate', icon: <Copy />, onSelect: () => void copy() },
+                  // Your last template stays: every invoice starts from one.
+                  ...((templates?.length ?? 0) > 1
+                    ? ([
+                        'separator',
+                        {
+                          label: 'Delete',
+                          icon: <Trash2 />,
+                          danger: true,
+                          onSelect: () => setDeleting(true),
+                        },
+                      ] as const)
+                    : []),
+                ]}
+              />
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => void backToList()}>
+                Cancel
+              </Button>
+              <Button size="sm" loading={saving} onClick={() => void save()}>
+                {saving ? null : <Check />} {template ? 'Save changes' : 'Create template'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -168,25 +247,20 @@ function TemplateEditor({ template }: { template: Doc<'templates'> & { logoUrl: 
               wrapperClassName="mb-5"
               value={draft.name}
               maxLength={60}
-              error={
-                error?.code === 'invalid' && draft.name.trim() === ''
-                  ? 'Give it a name.'
-                  : undefined
-              }
+              error={nameError}
               onChange={(e) => change({ name: e.target.value })}
             />
             <LookPicker
               layout={draft.layout}
               accent={draft.accent}
               preview={preview}
-              logoUrl={template.logoUrl}
+              logoUrl={logoUrl}
               onChange={change}
             />
             <div className="mt-5">
-              <LogoField templateId={template._id} logoUrl={template.logoUrl} />
+              <LogoField logoUrl={logoUrl} onChange={setLogo} />
             </div>
           </SectionCard>
-
           <SectionCard
             title="Business & bank account"
             description="Who the invoice is from and where clients pay. Manage them in Account."
@@ -249,7 +323,7 @@ function TemplateEditor({ template }: { template: Doc<'templates'> & { logoUrl: 
 
         <section aria-label="Preview" className="lg:sticky lg:top-24">
           <PaperPreview>
-            <InvoiceDocument invoice={preview} logoUrl={template.logoUrl} />
+            <InvoiceDocument invoice={preview} logoUrl={logoUrl} />
           </PaperPreview>
           <p className="m-0 mt-3 text-center text-[13px] text-muted">
             Preview with example client and item.
@@ -257,8 +331,18 @@ function TemplateEditor({ template }: { template: Doc<'templates'> & { logoUrl: 
         </section>
       </div>
 
+      <DiscardDialog
+        open={blocker.status === 'blocked'}
+        message={
+          template
+            ? 'The template stays as it was before you edited it.'
+            : "The new template won't be created."
+        }
+        onKeep={() => blocker.reset?.()}
+        onDiscard={() => blocker.proceed?.()}
+      />
       <DeleteTemplateDialog
-        template={deleting ? { _id: template._id, name: draft.name } : null}
+        template={deleting && template ? { _id: template._id, name: draft.name } : null}
         onClose={() => setDeleting(false)}
         onDeleted={() => void navigate({ to: '/templates' })}
       />

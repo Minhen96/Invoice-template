@@ -25,6 +25,7 @@ export type AppErrorCode =
   | 'duplicate'
   | 'weak_password'
   | 'wrong_password'
+  | 'last_template'
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- a type alias (not an interface) satisfies Convex's `Value` constraint
 export type AppErrorData = {

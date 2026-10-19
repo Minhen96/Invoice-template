@@ -25,7 +25,8 @@ test('a template can invoice as a second business', async ({ page }) => {
   await page.keyboard.press('Escape')
 
   await page.getByRole('link', { name: 'Templates', exact: true }).first().click()
-  await page.getByRole('button', { name: /Create your first template/ }).click()
+  // Every account starts with a default template.
+  await page.getByRole('link', { name: 'Default', exact: true }).click()
   await expect(page).toHaveURL(/\/templates\//)
   const preview = page.getByRole('region', { name: 'Preview' })
   await expect(preview.getByText('LIM KAI XIN TRADING AS LIM KAI XIN')).toBeVisible()
@@ -35,10 +36,12 @@ test('a template can invoice as a second business', async ({ page }) => {
   await page.getByRole('radio', { name: 'Just an amount' }).check()
   await page.getByRole('button', { name: 'Add a column here' }).click()
   await page.getByLabel('Your column 1 heading').fill('Date')
-  await expect(page.getByText('Auto-saved', { exact: true })).toBeVisible({ timeout: 10_000 })
   await page.getByRole('heading', { name: 'Items table' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: 'test-results/shot-columns.png', fullPage: true })
+  await page.getByRole('button', { name: 'Save changes' }).click()
+  await expect(page).toHaveURL(/\/templates$/)
 
+  await page.getByRole('link', { name: 'Default', exact: true }).click()
   await page.getByRole('button', { name: /New invoice with this/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Create invoice' }).click()
   await expect(page).toHaveURL(/\/invoices\//)

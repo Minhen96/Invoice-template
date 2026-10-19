@@ -96,22 +96,11 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
       ) : null}
 
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat
-          className="max-sm:col-span-2"
-          label="Outstanding"
-          value={rows === undefined ? null : formatAmounts(summary.outstanding, currency)}
-          note={`${String(summary.outstandingCount)} unpaid`}
-        />
-        <Stat
-          label={`Paid in ${today.slice(0, 4)}`}
-          value={rows === undefined ? null : formatAmounts(summary.paidThisYear, currency)}
-          note="Money received"
-        />
-        {/* A box the size of the figures beside it: the main thing to do here. */}
+        {/* First, and the size of the figures beside it: the main thing to do here. */}
         <button
           type="button"
           onClick={() => newInvoice()}
-          className="flex flex-col items-start justify-between gap-3 rounded-card bg-ink p-4 text-left text-onink shadow-card transition-colors hover:bg-ink/88 sm:p-5"
+          className="flex flex-col items-start justify-between gap-3 rounded-card bg-ink p-4 text-left text-onink shadow-card transition-colors hover:bg-ink/88 max-sm:col-span-2 max-sm:flex-row max-sm:items-center max-sm:justify-start sm:p-5"
         >
           <span className="flex size-9 items-center justify-center rounded-full bg-onink/15">
             <Plus aria-hidden="true" className="size-5" />
@@ -121,6 +110,16 @@ export function InvoicesPage({ status, q, onSearchChange }: InvoicesPageProps) {
             <span className="text-[12.5px] text-onink/75">Takes a minute</span>
           </span>
         </button>
+        <Stat
+          label="Outstanding"
+          value={rows === undefined ? null : formatAmounts(summary.outstanding, currency)}
+          note={`${String(summary.outstandingCount)} unpaid`}
+        />
+        <Stat
+          label={`Paid in ${today.slice(0, 4)}`}
+          value={rows === undefined ? null : formatAmounts(summary.paidThisYear, currency)}
+          note="Money received"
+        />
       </section>
 
       <Card className="overflow-hidden">

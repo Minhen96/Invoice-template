@@ -1,51 +1,46 @@
-import { api } from '@convex/_generated/api'
-import type { Id } from '@convex/_generated/dataModel'
-import { useAction, useMutation } from 'convex/react'
 import { ImagePlus, Trash2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { errorMessage } from '@/lib/errors'
+
+import type { LogoChange } from './use-save-logo'
 
 const MAX_LOGO_BYTES = 1024 * 1024
 
-/** Upload / replace / remove a template's logo (checked again on the server). */
-export function LogoField({
-  templateId,
-  logoUrl,
-}: {
-  templateId: Id<'templates'>
-  logoUrl: string | null
-}) {
-  const generateUploadUrl = useMutation(api.templates.generateLogoUploadUrl)
-  const setLogo = useAction(api.templates.setLogo)
-  const removeLogo = useMutation(api.templates.removeLogo)
-  const input = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
+function readAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result)
+      else reject(new Error('read failed'))
+    }
+    reader.onerror = () => reject(new Error('read failed'))
+    reader.readAsDataURL(file)
+  })
+}
 
-  async function upload(file: File) {
+/** Pick / replace / remove the logo; nothing is uploaded until the template is saved. */
+export function LogoField({
+  logoUrl,
+  onChange,
+}: {
+  /** What the template will show: the saved logo, or the picked one. */
+  logoUrl: string | null
+  onChange: (change: LogoChange) => void
+}) {
+  const input = useRef<HTMLInputElement>(null)
+
+  async function pick(file: File) {
+    if (input.current) input.current.value = ''
     if (file.size > MAX_LOGO_BYTES) {
       toast.error('Please use an image under 1 MB.')
       return
     }
-    setBusy(true)
     try {
-      const url = await generateUploadUrl()
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      })
-      if (!response.ok) throw new Error('upload failed')
-      const { storageId } = (await response.json()) as { storageId: string }
-      await setLogo({ id: templateId, storageId: storageId as Id<'_storage'> })
-      toast.success('Logo updated')
-    } catch (error) {
-      toast.error(errorMessage(error, "Couldn't use that image. Try a PNG or JPG under 1 MB."))
-    } finally {
-      setBusy(false)
-      if (input.current) input.current.value = ''
+      onChange({ kind: 'set', file, previewUrl: await readAsDataUrl(file) })
+    } catch {
+      toast.error("Couldn't read that image. Try a PNG or JPG under 1 MB.")
     }
   }
 
@@ -68,27 +63,15 @@ export function LogoField({
           tabIndex={-1}
           onChange={(e) => {
             const file = e.target.files?.[0]
-            if (file) void upload(file)
+            if (file) void pick(file)
           }}
         />
         <div className="flex gap-1">
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={busy}
-            onClick={() => input.current?.click()}
-          >
+          <Button variant="secondary" size="sm" onClick={() => input.current?.click()}>
             {logoUrl ? 'Change logo' : 'Add logo'}
           </Button>
           {logoUrl ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => {
-                void removeLogo({ id: templateId }).then(() => toast.success('Logo removed'))
-              }}
-            >
+            <Button variant="ghost" size="sm" onClick={() => onChange({ kind: 'remove' })}>
               <Trash2 /> Remove
             </Button>
           ) : null}

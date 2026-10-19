@@ -6,6 +6,7 @@ import { ConvexError } from 'convex/values'
 import type { DataModel } from './_generated/dataModel'
 import { normaliseEmail, passwordProblem } from './lib/credentials'
 import { ResetPasswordCode, VerifyEmailCode } from './otp'
+import { seedDefaultTemplate } from './templates'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -30,6 +31,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     // as a password account signs into that same account.
     Google,
   ],
+  callbacks: {
+    // A brand-new account gets a ready-to-use template.
+    async afterUserCreatedOrUpdated(ctx, { userId, existingUserId }) {
+      if (existingUserId === null) await seedDefaultTemplate(ctx, userId)
+    },
+  },
   session: {
     // Like the stock app: stay signed in while you keep using it (60 days rolling)…
     inactiveDurationMs: 60 * DAY_MS,

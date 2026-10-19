@@ -13,18 +13,16 @@ test('template once → invoice → item remembered for next time', async ({ pag
   // Business and bank details once, in Account.
   await fillAccountDetails(page)
 
-  // First "New invoice" asks for a template; add a "Date" column to it.
-  await page
-    .getByRole('button', { name: /^(New invoice|Create)$/ })
-    .first()
-    .click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Set up template' }).click()
-  await expect(page).toHaveURL(/\/templates\//)
+  // A template of your own (next to the default one), with a "Date" column.
+  await page.getByRole('link', { name: 'Templates', exact: true }).first().click()
+  await page.getByRole('button', { name: 'New template' }).click()
+  await expect(page).toHaveURL(/\/templates\/new$/)
   await page.getByLabel('Template name').fill('Astro announcer')
   await page.getByRole('button', { name: 'Add a column here' }).click()
   await page.getByLabel('Your column 1 heading').fill('Date')
-  await expect(page.getByText('Auto-saved', { exact: true })).toBeVisible({ timeout: 10_000 })
   await page.screenshot({ path: 'test-results/shot-template-editor.png', fullPage: true })
+  await page.getByRole('button', { name: 'Create template' }).click()
+  await expect(page.getByRole('link', { name: 'Astro announcer', exact: true })).toBeVisible()
 
   // Client, once.
   await page.getByRole('link', { name: 'Clients' }).first().click()

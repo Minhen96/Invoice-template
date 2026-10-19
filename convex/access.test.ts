@@ -167,6 +167,8 @@ describe('account isolation', () => {
       bob.as.mutation(api.bankAccounts.remove, { id: bankAccountId }),
       bob.as.mutation(api.templates.update, { id: bobTemplateId, ...fields, businessId }),
       bob.as.mutation(api.templates.update, { id: bobTemplateId, ...fields, bankAccountId }),
+      bob.as.mutation(api.templates.create, { businessId }),
+      bob.as.mutation(api.templates.create, { bankAccountId }),
       bob.as.mutation(api.invoices.create, { today: TODAY, templateId: bobTemplateId, businessId }),
       bob.as.mutation(api.invoices.create, {
         today: TODAY,

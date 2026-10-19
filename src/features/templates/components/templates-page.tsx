@@ -23,10 +23,8 @@ export function TemplatesPage() {
   const templates = useQuery(api.templates.list)
   const businesses = useQuery(api.businesses.list)
   const banks = useQuery(api.bankAccounts.list)
-  const create = useMutation(api.templates.create)
   const duplicate = useMutation(api.templates.duplicate)
   const navigate = useNavigate()
-  const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<{ _id: Id<'templates'>; name: string } | null>(null)
   const [query, setQuery] = useState('')
   const words = query.trim().toLowerCase()
@@ -36,16 +34,10 @@ export function TemplatesPage() {
     return [template.name, layout].some((field) => field.toLowerCase().includes(words))
   })
 
-  async function createTemplate() {
-    setCreating(true)
-    try {
-      const id = await create({})
-      await navigate({ to: '/templates/$id', params: { id } })
-    } catch (error) {
-      toast.error(errorMessage(error, "Couldn't create the template."))
-      setCreating(false)
-    }
-  }
+  // Opens an unsaved template; nothing is stored until "Create template".
+  const createTemplate = () => navigate({ to: '/templates/new' })
+  // Your last template stays: every invoice starts from one.
+  const canDelete = (templates?.length ?? 0) > 1
 
   async function copy(id: Id<'templates'>) {
     try {
@@ -66,13 +58,8 @@ export function TemplatesPage() {
           </p>
         </div>
         {templates && templates.length > 0 ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={creating}
-            onClick={() => void createTemplate()}
-          >
-            {creating ? null : <Plus />} New template
+          <Button variant="secondary" size="sm" onClick={() => void createTemplate()}>
+            <Plus /> New template
           </Button>
         ) : null}
       </div>
@@ -99,8 +86,8 @@ export function TemplatesPage() {
               once, then every invoice takes seconds.
             </p>
           </div>
-          <Button className="mt-2" loading={creating} onClick={() => void createTemplate()}>
-            {creating ? null : <Plus />} Create your first template
+          <Button className="mt-2" onClick={() => void createTemplate()}>
+            <Plus /> Create your first template
           </Button>
         </Card>
       ) : (
@@ -168,14 +155,18 @@ export function TemplatesPage() {
                               icon: <Copy />,
                               onSelect: () => void copy(template._id),
                             },
-                            'separator',
-                            {
-                              label: 'Delete',
-                              icon: <Trash2 />,
-                              danger: true,
-                              onSelect: () =>
-                                setDeleting({ _id: template._id, name: template.name }),
-                            },
+                            ...(canDelete
+                              ? ([
+                                  'separator',
+                                  {
+                                    label: 'Delete',
+                                    icon: <Trash2 />,
+                                    danger: true,
+                                    onSelect: () =>
+                                      setDeleting({ _id: template._id, name: template.name }),
+                                  },
+                                ] as const)
+                              : []),
                           ]}
                         />
                       </div>

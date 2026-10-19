@@ -43,14 +43,14 @@ test('every signed-in page is accessible', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Templates', level: 1 })).toBeVisible()
   await expectAccessible(page)
 
-  // New invoice popup (first time: asks for a template).
+  // New invoice popup: ready straight away, with the default template.
   await page
     .getByRole('button', { name: /^(New invoice|Create)$/ })
     .first()
     .click()
-  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('dialog').getByLabel('Invoice date')).toBeVisible()
   await expectAccessible(page)
-  await page.getByRole('dialog').getByRole('button', { name: 'Later' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
 
   await firstInvoice(page)
   await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
@@ -75,11 +75,14 @@ test('every signed-in page is accessible', async ({ page }) => {
   await expect(page.getByRole('article').first()).toBeVisible()
   await expectAccessible(page)
   await page.getByRole('link', { name: 'Templates', exact: true }).first().click()
-  await expect(page.getByRole('link', { name: 'My template', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Default', exact: true })).toBeVisible()
   await expectAccessible(page)
 
-  // Template editor.
-  await page.getByRole('link', { name: 'My template', exact: true }).click()
+  // Template editor, then with unsaved changes (Cancel / Save changes).
+  await page.getByRole('link', { name: 'Default', exact: true }).click()
   await expect(page.getByLabel('Template name')).toBeVisible()
+  await expectAccessible(page)
+  await page.getByLabel('Template name').fill('Renamed')
+  await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible()
   await expectAccessible(page)
 })

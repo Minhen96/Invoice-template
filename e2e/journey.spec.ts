@@ -14,12 +14,13 @@ test('sign up → invoice → PDF → paid → next month', async ({ page }) => 
   // Business and bank details once, in Account; then the template (look + columns).
   await fillAccountDetails(page)
   await page.getByRole('link', { name: 'Templates', exact: true }).first().click()
-  await page.getByRole('button', { name: /Create your first template/ }).click()
+  await page.getByRole('link', { name: 'Default', exact: true }).click()
   await expect(page).toHaveURL(/\/templates\//)
   await page.getByLabel('Template name').fill('Astro announcer')
   await page.getByLabel('Rate column heading').fill('Rate Per Session / Hour*')
   await page.getByLabel('Quantity column heading').fill('Quantity (session)')
-  await expect(page.getByText('Auto-saved', { exact: true })).toBeVisible({ timeout: 10_000 })
+  await page.getByRole('button', { name: 'Save changes' }).click()
+  await expect(page).toHaveURL(/\/templates$/)
 
   // New invoice, filled in like the paper one (a one-off client, typed in).
   await page

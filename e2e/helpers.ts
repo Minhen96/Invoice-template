@@ -57,15 +57,12 @@ export async function expectAccessible(page: Page) {
   ).toEqual([])
 }
 
-/** A new account's first invoice: set up a template (with defaults), then create from it. */
+/** A new account's first invoice, from the default template every account starts with. */
 export async function firstInvoice(page: Page) {
   await page
     .getByRole('button', { name: /^(New invoice|Create)$/ })
     .first()
     .click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Set up template' }).click()
-  await expect(page).toHaveURL(/\/templates\//)
-  await page.getByRole('button', { name: /New invoice with this/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Create invoice' }).click()
   await expect(page).toHaveURL(/\/invoices\//)
 }

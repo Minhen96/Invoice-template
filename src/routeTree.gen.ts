@@ -24,6 +24,7 @@ import { Route as GuestSignupRouteImport } from './routes/_guest/signup'
 import { Route as AppInvoicesIdRouteImport } from './routes/_app/invoices/$id'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app/templates/index'
 import { Route as AppTemplatesIdRouteImport } from './routes/_app/templates/$id'
+import { Route as AppTemplatesNewRouteImport } from './routes/_app/templates/new'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -98,6 +99,11 @@ const AppTemplatesIdRoute = AppTemplatesIdRouteImport.update({
   path: '/templates/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTemplatesNewRoute = AppTemplatesNewRouteImport.update({
+  id: '/templates/new',
+  path: '/templates/new',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof GuestSignupRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/templates/$id': typeof AppTemplatesIdRoute
+  '/templates/new': typeof AppTemplatesNewRoute
   '/templates/': typeof AppTemplatesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/signup': typeof GuestSignupRoute
   '/invoices/$id': typeof AppInvoicesIdRoute
   '/templates/$id': typeof AppTemplatesIdRoute
+  '/templates/new': typeof AppTemplatesNewRoute
   '/templates': typeof AppTemplatesIndexRoute
 }
 export interface FileRoutesById {
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/invoices/$id': typeof AppInvoicesIdRoute
   '/_app/templates/$id': typeof AppTemplatesIdRoute
+  '/_app/templates/new': typeof AppTemplatesNewRoute
   '/_app/templates/': typeof AppTemplatesIndexRoute
 }
 export interface FileRouteTypes {
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/invoices/$id'
     | '/templates/$id'
+    | '/templates/new'
     | '/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/invoices/$id'
     | '/templates/$id'
+    | '/templates/new'
     | '/templates'
   id:
     | '__root__'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/invoices/$id'
     | '/_app/templates/$id'
+    | '/_app/templates/new'
     | '/_app/templates/'
   fileRoutesById: FileRoutesById
 }
@@ -311,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTemplatesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/templates/new': {
+      id: '/_app/templates/new'
+      path: '/templates/new'
+      fullPath: '/templates/new'
+      preLoaderRoute: typeof AppTemplatesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -322,6 +341,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppInvoicesIdRoute: typeof AppInvoicesIdRoute
   AppTemplatesIdRoute: typeof AppTemplatesIdRoute
+  AppTemplatesNewRoute: typeof AppTemplatesNewRoute
   AppTemplatesIndexRoute: typeof AppTemplatesIndexRoute
 }
 
@@ -333,6 +353,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppInvoicesIdRoute: AppInvoicesIdRoute,
   AppTemplatesIdRoute: AppTemplatesIdRoute,
+  AppTemplatesNewRoute: AppTemplatesNewRoute,
   AppTemplatesIndexRoute: AppTemplatesIndexRoute,
 }
 

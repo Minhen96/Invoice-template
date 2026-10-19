@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
 import { DEFAULT_TEMPLATE } from './lib/defaults'
 import { isSupportedImage } from './lib/logo'
+import { seedDefaultTemplate } from './templates'
 import { createTemplate, signedInUser, setupBackend, TODAY } from './test.helpers'
 
 function pngBlob() {
@@ -61,10 +62,69 @@ describe('templates', () => {
     const t = setupBackend()
     const { as } = await signedInUser(t)
     const id = await createTemplate(as, { title: 'RECEIPT' })
+    await createTemplate(as, { name: 'Other' })
     const invoiceId = await as.mutation(api.invoices.create, { today: TODAY, templateId: id })
     await as.mutation(api.templates.remove, { id })
     expect((await as.query(api.invoices.get, { id: invoiceId }))?.title).toBe('RECEIPT')
     expect((await as.query(api.profiles.get, {}))?.lastTemplateId).toBeNull()
+  })
+})
+
+describe('the default template', () => {
+  it('is given once to a new account', async () => {
+    const t = setupBackend()
+    const { as, userId } = await signedInUser(t)
+    await t.run((ctx) => seedDefaultTemplate(ctx, userId))
+    await t.run((ctx) => seedDefaultTemplate(ctx, userId))
+    expect(await as.query(api.templates.list, {})).toMatchObject([
+      { ...DEFAULT_TEMPLATE, name: 'Default' },
+    ])
+  })
+
+  it('is added to older accounts without any template, and only to them', async () => {
+    const t = setupBackend()
+    const empty = await signedInUser(t, 'empty@example.com')
+    const set = await signedInUser(t, 'set@example.com')
+    await createTemplate(set.as, { name: 'Mine' })
+    await t.mutation(internal.templates.seedMissingDefaults, {})
+    expect((await empty.as.query(api.templates.list, {})).map((x) => x.name)).toEqual(['Default'])
+    expect((await set.as.query(api.templates.list, {})).map((x) => x.name)).toEqual(['Mine'])
+  })
+
+  it('the last template can’t be deleted', async () => {
+    const t = setupBackend()
+    const { as } = await signedInUser(t)
+    const id = await createTemplate(as)
+    await expect(as.mutation(api.templates.remove, { id })).rejects.toThrow(/last_template/)
+    expect(await as.query(api.templates.list, {})).toHaveLength(1)
+  })
+
+  it('a new template can use a chosen business and bank account', async () => {
+    const t = setupBackend()
+    const { as, userId } = await signedInUser(t)
+    const { businessId, bankAccountId } = await t.run(async (ctx) => ({
+      businessId: await ctx.db.insert('businesses', {
+        userId,
+        isDefault: true,
+        name: 'Astro',
+        regNo: '',
+        address: '',
+        email: '',
+        phone: '',
+      }),
+      bankAccountId: await ctx.db.insert('bankAccounts', {
+        userId,
+        isDefault: true,
+        accountName: '',
+        idLabel: '',
+        idNumber: '',
+        bankName: 'Maybank',
+        accountNumber: '',
+        extra: '',
+      }),
+    }))
+    const id = await as.mutation(api.templates.create, { businessId, bankAccountId })
+    expect(await as.query(api.templates.get, { id })).toMatchObject({ businessId, bankAccountId })
   })
 })
 
