@@ -35,6 +35,7 @@ import type * as lib_templateSwitch from "../lib/templateSwitch.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as otp from "../otp.js";
 import type * as profiles from "../profiles.js";
+import type * as seed from "../seed.js";
 import type * as templates from "../templates.js";
 
 import type {
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   otp: typeof otp;
   profiles: typeof profiles;
+  seed: typeof seed;
   templates: typeof templates;
 }>;
 
